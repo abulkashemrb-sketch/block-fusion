@@ -50,3 +50,6 @@ app.*.map.json
 # Local dev tooling / private notes (not part of the shipped app)
 .mcp.json
 PROJECT_HANDOFF.md
+
+# Per-developer Claude Code settings (.claude/settings.json is shared on purpose)
+.claude/settings.local.json

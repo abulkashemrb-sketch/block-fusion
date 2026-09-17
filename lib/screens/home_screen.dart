@@ -16,11 +16,14 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'BLOCK FUSION',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    fontSize: 40,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'BLOCK FUSION',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontSize: 40,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
