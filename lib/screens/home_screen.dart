@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import 'game_screen.dart';
 
 /// Landing screen shown on app launch.
-///
-/// This is intentionally a placeholder for now: the grid/board gameplay is
-/// built in the next development phase and will be wired in behind the
-/// "Play" action here.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -35,15 +31,10 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
                 ElevatedButton(
-                  onPressed: null, // wired up once the game board ships
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const GameScreen()),
+                  ),
                   child: const Text('PLAY'),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Game board coming in the next step',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppTheme.muted),
                 ),
               ],
             ),
