@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/game_block.dart';
@@ -10,13 +12,21 @@ import 'block_generator.dart';
 /// input handling lives here, which keeps it unit-testable and reusable
 /// between the Flame layer and (later) Supabase score syncing.
 class GameLogic extends ChangeNotifier {
-  GameLogic({BlockGenerator? generator}) : _generator = generator ?? BlockGenerator() {
+  GameLogic({BlockGenerator? generator, Random? random})
+      : _generator = generator ?? BlockGenerator(),
+        _random = random ?? Random() {
     tray = List<GameBlock?>.from(_generator.nextTray());
   }
 
   static const int _pointsPerClearedLine = 10;
 
+  /// Chance, each time the tray is refilled, that a new locked obstacle
+  /// cell appears somewhere empty on the board.
+  static const double _lockSpawnChance = 0.2;
+  static const int _lockLevel = 2;
+
   final BlockGenerator _generator;
+  final Random _random;
   final GameGrid grid = GameGrid();
 
   late List<GameBlock?> tray;
@@ -60,7 +70,18 @@ class GameLogic extends ChangeNotifier {
   void _refillTrayIfEmpty() {
     if (tray.every((block) => block == null)) {
       tray = List<GameBlock?>.from(_generator.nextTray());
+      _maybeSpawnLockedCell();
     }
+  }
+
+  void _maybeSpawnLockedCell() {
+    if (_random.nextDouble() > _lockSpawnChance) return;
+
+    final emptyPositions = grid.emptyPositions();
+    if (emptyPositions.isEmpty) return;
+
+    final position = emptyPositions[_random.nextInt(emptyPositions.length)];
+    grid.lockCell(position, level: _lockLevel);
   }
 
   void _updateGameOver() {
@@ -71,7 +92,7 @@ class GameLogic extends ChangeNotifier {
 
   void restart() {
     grid.reset();
-    tray = _generator.nextTray();
+    tray = List<GameBlock?>.from(_generator.nextTray());
     score = 0;
     isGameOver = false;
     notifyListeners();

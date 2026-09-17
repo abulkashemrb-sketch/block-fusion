@@ -39,6 +39,19 @@ class GameGrid {
     }
   }
 
+  /// Turns an empty cell into a locked obstacle. It blocks placement like
+  /// any occupied cell, but chips away by one [Cell.lockLevel] per line
+  /// clear that crosses it (see [clearLines]) instead of clearing outright.
+  void lockCell(GridPosition position, {int level = 2}) {
+    _cells[position.row][position.col] = Cell(lockLevel: level);
+  }
+
+  List<GridPosition> emptyPositions() => [
+        for (var row = 0; row < size; row++)
+          for (var col = 0; col < size; col++)
+            if (_cells[row][col].isEmpty) GridPosition(row, col),
+      ];
+
   /// Whether [shape] fits anywhere on the board at all — used for
   /// game-over detection.
   bool canPlaceAnywhere(BlockShape shape) {
@@ -63,14 +76,23 @@ class GameGrid {
   void clearLines(List<int> rows, List<int> columns) {
     for (final row in rows) {
       for (var col = 0; col < size; col++) {
-        _cells[row][col] = const Cell.empty();
+        _cells[row][col] = _afterClear(_cells[row][col]);
       }
     }
     for (final col in columns) {
       for (var row = 0; row < size; row++) {
-        _cells[row][col] = const Cell.empty();
+        _cells[row][col] = _afterClear(_cells[row][col]);
       }
     }
+  }
+
+  /// A locked cell absorbs one hit per line clear that crosses it and only
+  /// empties once its [Cell.lockLevel] reaches zero; everything else
+  /// clears outright.
+  Cell _afterClear(Cell cell) {
+    if (!cell.isLocked) return const Cell.empty();
+    final remaining = cell.lockLevel - 1;
+    return remaining > 0 ? Cell(lockLevel: remaining) : const Cell.empty();
   }
 
   void reset() {

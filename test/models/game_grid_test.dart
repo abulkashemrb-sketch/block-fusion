@@ -63,5 +63,44 @@ void main() {
 
       expect(grid.canPlaceAnywhere(_shapeById('single')), isFalse);
     });
+
+    test('lockCell creates an obstacle that blocks placement without a color', () {
+      final grid = GameGrid()..lockCell(const GridPosition(2, 2));
+      final cell = grid.cellAt(const GridPosition(2, 2));
+
+      expect(cell.isLocked, isTrue);
+      expect(cell.color, isNull);
+      expect(grid.canPlace(_shapeById('single'), const GridPosition(2, 2)), isFalse);
+    });
+
+    test('emptyPositions excludes both filled and locked cells', () {
+      final grid = GameGrid()
+        ..place(_shapeById('single'), const GridPosition(0, 0), BlockColor.red)
+        ..lockCell(const GridPosition(0, 1));
+
+      final empties = grid.emptyPositions();
+
+      expect(empties.contains(const GridPosition(0, 0)), isFalse);
+      expect(empties.contains(const GridPosition(0, 1)), isFalse);
+      expect(empties.length, GameGrid.size * GameGrid.size - 2);
+    });
+
+    test('clearLines chips a locked cell down by one instead of clearing it', () {
+      final grid = GameGrid()..lockCell(const GridPosition(0, 0), level: 2);
+
+      grid.clearLines([0], const []);
+
+      final cell = grid.cellAt(const GridPosition(0, 0));
+      expect(cell.isLocked, isTrue);
+      expect(cell.lockLevel, 1);
+    });
+
+    test('clearLines fully empties a locked cell once its level reaches zero', () {
+      final grid = GameGrid()..lockCell(const GridPosition(0, 0), level: 1);
+
+      grid.clearLines([0], const []);
+
+      expect(grid.cellAt(const GridPosition(0, 0)).isEmpty, isTrue);
+    });
   });
 }

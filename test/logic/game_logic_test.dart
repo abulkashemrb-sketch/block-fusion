@@ -82,6 +82,51 @@ void main() {
       expect(logic.score, 0);
       expect(logic.isGameOver, isFalse);
       expect(logic.grid.cellAt(const GridPosition(0, 0)).isEmpty, isTrue);
+
+      // Placing again after a restart must not crash (regression check for
+      // the tray list needing to stay nullable after being reassigned).
+      final placedAfterRestart = logic.tryPlace(0, const GridPosition(1, 1));
+      expect(placedAfterRestart, isTrue);
+    });
+
+    test('a locked cell blocks placement but chips down when its line clears', () {
+      final single = GameBlock(shape: _shapeById('single'), color: BlockColor.teal);
+      final logic = GameLogic(generator: _FixedGenerator([single]));
+
+      logic.grid.lockCell(const GridPosition(0, 5));
+      expect(
+        logic.grid.canPlace(_shapeById('single'), const GridPosition(0, 5)),
+        isFalse,
+      );
+
+      for (final col in [0, 1, 2, 3, 4, 6, 7]) {
+        final trayIndex = logic.tray.indexWhere((block) => block != null);
+        logic.tryPlace(trayIndex, GridPosition(0, col));
+      }
+
+      final lockedCell = logic.grid.cellAt(const GridPosition(0, 5));
+      expect(lockedCell.isLocked, isTrue);
+      expect(lockedCell.lockLevel, 1);
+    });
+
+    test('a locked cell fully unlocks after being crossed by two line clears', () {
+      final single = GameBlock(shape: _shapeById('single'), color: BlockColor.teal);
+      final logic = GameLogic(generator: _FixedGenerator([single]));
+      logic.grid.lockCell(const GridPosition(0, 5));
+
+      for (var pass = 0; pass < 2; pass++) {
+        for (final col in [0, 1, 2, 3, 4, 6, 7]) {
+          final trayIndex = logic.tray.indexWhere((block) => block != null);
+          logic.tryPlace(trayIndex, GridPosition(0, col));
+        }
+      }
+
+      final cell = logic.grid.cellAt(const GridPosition(0, 5));
+      expect(cell.isLocked, isFalse);
+      expect(
+        logic.grid.canPlace(_shapeById('single'), const GridPosition(0, 5)),
+        isTrue,
+      );
     });
   });
 }
