@@ -20,7 +20,10 @@ class BlockFusionGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     final gridComponent = GridComponent(logic: logic);
-    await add(gridComponent);
+    // Do not await: add() completes when the component is mounted, and
+    // mounting is processed by the game loop, which does not run until
+    // onLoad() returns. Awaiting here deadlocks and the game never loads.
+    add(gridComponent);
     _gridComponent = gridComponent;
     _trayController = TrayController(
       game: this,

@@ -27,6 +27,11 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       body: SafeArea(
         child: Stack(
+          // Every child here is positioned except the game-over builder,
+          // which is an empty box while the game is running. Without an
+          // explicit fit the stack shrink-wraps to that empty box, collapses
+          // to zero size, and paints nothing at all.
+          fit: StackFit.expand,
           children: [
             Positioned.fill(child: GameWidget(game: _game)),
             Positioned(
