@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/block_kind.dart';
 import '../models/game_block.dart';
 import '../models/game_grid.dart';
 import '../models/grid_position.dart';
@@ -43,8 +44,12 @@ class GameLogic extends ChangeNotifier {
       return false;
     }
 
-    grid.place(block.shape, origin, block.color);
-    score += block.shape.cells.length;
+    if (block.kind == BlockKind.bomb) {
+      score += grid.detonate(origin);
+    } else {
+      grid.place(block.shape, origin, block.color);
+      score += block.shape.cells.length;
+    }
     tray[trayIndex] = null;
 
     _resolveLineClears();

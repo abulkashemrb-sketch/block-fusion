@@ -128,5 +128,18 @@ void main() {
         isTrue,
       );
     });
+
+    test('placing a bomb detonates the 3x3 area instead of coloring a cell', () {
+      final bomb = GameBlock.bomb();
+      final logic = GameLogic(generator: _FixedGenerator([bomb, bomb, bomb]));
+      logic.grid.place(_shapeById('single'), const GridPosition(4, 4), BlockColor.blue);
+
+      final placed = logic.tryPlace(0, const GridPosition(4, 3));
+
+      expect(placed, isTrue);
+      expect(logic.grid.cellAt(const GridPosition(4, 3)).isEmpty, isTrue);
+      expect(logic.grid.cellAt(const GridPosition(4, 4)).isEmpty, isTrue); // caught in the blast
+      expect(logic.score, greaterThan(0));
+    });
   });
 }

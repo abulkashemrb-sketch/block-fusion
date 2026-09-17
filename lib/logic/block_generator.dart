@@ -11,9 +11,16 @@ import '../models/game_block.dart';
 class BlockGenerator {
   BlockGenerator({Random? random}) : _random = random ?? Random();
 
+  /// Chance that a generated piece is a bomb power-up instead of a normal
+  /// colored shape.
+  static const double _bombChance = 0.12;
+
   final Random _random;
 
   GameBlock next() {
+    if (_random.nextDouble() < _bombChance) {
+      return GameBlock.bomb();
+    }
     final shape = BlockShape.library[_random.nextInt(BlockShape.library.length)];
     final color = BlockColor.values[_random.nextInt(BlockColor.values.length)];
     return GameBlock(shape: shape, color: color);

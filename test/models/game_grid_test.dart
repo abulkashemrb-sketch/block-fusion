@@ -102,5 +102,27 @@ void main() {
 
       expect(grid.cellAt(const GridPosition(0, 0)).isEmpty, isTrue);
     });
+
+    test('detonate clears the 3x3 area around a cell, including locked ones fully', () {
+      final grid = GameGrid()
+        ..place(_shapeById('single'), const GridPosition(3, 3), BlockColor.red)
+        ..lockCell(const GridPosition(3, 4), level: 2);
+
+      final cleared = grid.detonate(const GridPosition(3, 3));
+
+      expect(cleared, 2); // the placed block + the locked cell
+      expect(grid.cellAt(const GridPosition(3, 3)).isEmpty, isTrue);
+      expect(grid.cellAt(const GridPosition(3, 4)).isEmpty, isTrue);
+    });
+
+    test('detonate does not throw when the blast radius runs off the board', () {
+      final grid = GameGrid()
+        ..place(_shapeById('single'), const GridPosition(0, 0), BlockColor.blue);
+
+      final cleared = grid.detonate(const GridPosition(0, 0));
+
+      expect(cleared, 1);
+      expect(grid.cellAt(const GridPosition(0, 0)).isEmpty, isTrue);
+    });
   });
 }

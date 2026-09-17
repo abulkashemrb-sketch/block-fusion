@@ -39,6 +39,22 @@ class GameGrid {
     }
   }
 
+  /// Clears every occupied cell (including locked ones, fully — a bomb
+  /// ignores remaining lock hits) in the 3x3 area centered on [center].
+  /// Returns how many cells were actually cleared, for scoring.
+  int detonate(GridPosition center) {
+    var clearedCount = 0;
+    for (var dRow = -1; dRow <= 1; dRow++) {
+      for (var dCol = -1; dCol <= 1; dCol++) {
+        final target = GridPosition(center.row + dRow, center.col + dCol);
+        if (!isInBounds(target)) continue;
+        if (_cells[target.row][target.col].isFilled) clearedCount++;
+        _cells[target.row][target.col] = const Cell.empty();
+      }
+    }
+    return clearedCount;
+  }
+
   /// Turns an empty cell into a locked obstacle. It blocks placement like
   /// any occupied cell, but chips away by one [Cell.lockLevel] per line
   /// clear that crosses it (see [clearLines]) instead of clearing outright.

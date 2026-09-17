@@ -3,6 +3,7 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 
 import '../../logic/game_logic.dart';
+import '../../models/block_kind.dart';
 import '../../models/game_block.dart';
 import '../../models/grid_position.dart';
 import '../block_palette.dart';
@@ -112,10 +113,26 @@ class BlockPieceComponent extends PositionComponent with DragCallbacks {
         cellSize,
         cellSize,
       ).deflate(2);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-        Paint()..color = blockColorToColor(block.color),
-      );
+      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+
+      if (block.kind == BlockKind.bomb) {
+        _paintBomb(canvas, rect, rrect);
+      } else {
+        canvas.drawRRect(rrect, Paint()..color = blockColorToColor(block.color));
+      }
     }
+  }
+
+  void _paintBomb(Canvas canvas, Rect rect, RRect rrect) {
+    canvas.drawRRect(rrect, Paint()..color = const Color(0xFF2B2B33));
+    canvas.drawCircle(rect.center, rect.shortestSide * 0.32, Paint()..color = Colors.black);
+    canvas.drawCircle(
+      rect.center,
+      rect.shortestSide * 0.32,
+      Paint()
+        ..color = Colors.orangeAccent
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
   }
 }
