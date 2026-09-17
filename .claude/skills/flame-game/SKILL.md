@@ -84,6 +84,32 @@ nullable fields, guard the calls (`_grid?.layout(size)`), and also call layout a
 the end of `onLoad` with the current `size`. Derive a `cellSize` from the canvas
 and let every component size off it; never hardcode pixel sizes.
 
+## The screen that hosts the game
+
+`GameWidget` fills whatever box it is given, and happily fills a box of zero
+size while painting nothing. A game screen built as
+
+```dart
+Stack(children: [
+  Positioned.fill(child: GameWidget(game: game)),
+  Positioned(top: 12, left: 0, right: 0, child: scoreHud),
+  ListenableBuilder(... => isGameOver ? overlay : const SizedBox.shrink()),
+])
+```
+
+collapses to nothing: a `Stack` sizes itself to its largest **non-positioned**
+child, and the only one here is an empty box while the game is running. The
+whole screen renders as the scaffold background — no board, no tray, no HUD, and
+no error anywhere. Pass `fit: StackFit.expand` on any stack whose children are
+all positioned.
+
+This shipped once and cost an hour of browser debugging, because a widget test
+asserting `find.textContaining('SCORE')` **passed** the entire time: a zero-sized
+subtree still contains its widgets. Assert geometry, not existence —
+`tester.getSize(find.byType(GameWidget<MyGame>))` and `tester.getRect(...)`.
+Note the generic: `find.byType(GameWidget)` means `GameWidget<dynamic>` and
+matches nothing.
+
 ## Testing gameplay, not just logic
 
 Split the rules (grid, scoring, game-over) into plain Dart with no Flame imports
