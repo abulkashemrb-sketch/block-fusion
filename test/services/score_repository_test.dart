@@ -22,8 +22,20 @@ void main() {
       expect(await repository.fetchBestScore(), isNull);
     });
 
-    test('reports a failed record instead of throwing', () async {
-      expect(await repository.recordScore(120), isFalse);
+    test('says the player is not signed in rather than throwing', () async {
+      // The three outcomes are not interchangeable: the game-over card
+      // tells the player to sign in for this one, and blames the network
+      // for a real failure.
+      expect(await repository.recordScore(120), SyncOutcome.notSignedIn);
+    });
+
+    test('a zero score is nothing to save', () async {
+      expect(await repository.recordScore(0), SyncOutcome.nothingToSave);
+    });
+
+    test('paging past the end returns nothing instead of throwing', () async {
+      expect(await repository.fetchLeaderboard(limit: 20, offset: 200),
+          isEmpty);
     });
 
     test('returns an empty leaderboard instead of throwing', () async {

@@ -22,12 +22,53 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
+  static const int _pageSize = 20;
+
   late final ScoreRepository _repository =
       widget.repository ?? ScoreRepository();
-  late Future<List<LeaderboardEntry>> _entries = _repository.fetchLeaderboard();
 
-  void _reload() {
-    setState(() => _entries = _repository.fetchLeaderboard());
+  final List<LeaderboardEntry> _entries = [];
+  bool _loading = true;
+  bool _loadingMore = false;
+
+  /// False once a page comes back short, which is how the end of the table
+  /// announces itself.
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFirstPage();
+  }
+
+  Future<void> _loadFirstPage() async {
+    setState(() {
+      _loading = true;
+      _entries.clear();
+      _hasMore = true;
+    });
+    final page = await _repository.fetchLeaderboard(limit: _pageSize);
+    if (!mounted) return;
+    setState(() {
+      _entries.addAll(page);
+      _hasMore = page.length == _pageSize;
+      _loading = false;
+    });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    final page = await _repository.fetchLeaderboard(
+      limit: _pageSize,
+      offset: _entries.length,
+    );
+    if (!mounted) return;
+    setState(() {
+      _entries.addAll(page);
+      _hasMore = page.length == _pageSize;
+      _loadingMore = false;
+    });
   }
 
   @override
@@ -37,7 +78,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         title: const Text('LEADERBOARD'),
         actions: [
           IconButton(
-            onPressed: _reload,
+            onPressed: _loading ? null : _loadFirstPage,
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
@@ -45,30 +86,56 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: FutureBuilder<List<LeaderboardEntry>>(
-            future: _entries,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final entries = snapshot.data ?? const <LeaderboardEntry>[];
-              if (entries.isEmpty) {
-                return const _EmptyState();
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: entries.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) => _Row(
-                  rank: index + 1,
-                  entry: entries[index],
-                  isCurrentUser: entries[index].userId == widget.currentUserId,
-                ),
-              );
-            },
-          ),
-        ),
+        child: SafeArea(child: _body()),
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_entries.isEmpty) return const _EmptyState();
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      // One extra row for the button at the end, when there is more to get.
+      itemCount: _entries.length + (_hasMore ? 1 : 0),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        if (index == _entries.length) {
+          return _LoadMoreButton(loading: _loadingMore, onPressed: _loadMore);
+        }
+        return _Row(
+          rank: index + 1,
+          entry: _entries[index],
+          isCurrentUser: _entries[index].userId == widget.currentUserId,
+        );
+      },
+    );
+  }
+}
+
+class _LoadMoreButton extends StatelessWidget {
+  const _LoadMoreButton({required this.loading, required this.onPressed});
+
+  final bool loading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : TextButton(
+                onPressed: onPressed,
+                style: TextButton.styleFrom(foregroundColor: AppTheme.muted),
+                child: const Text('Load more'),
+              ),
       ),
     );
   }

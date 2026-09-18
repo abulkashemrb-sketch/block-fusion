@@ -40,6 +40,10 @@ class _GameScreenState extends State<GameScreen> {
   /// a fresh board over the one still being restored.
   bool _restored = false;
 
+  /// What became of the score this run, shown on the game-over card. Null
+  /// while the request is still in flight.
+  SyncOutcome? _syncOutcome;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +74,7 @@ class _GameScreenState extends State<GameScreen> {
 
     if (!_logic.isGameOver) {
       _recordedThisRun = false;
+      _syncOutcome = null;
       unawaited(_storage.saveGame(_logic.toSnapshot()));
       return;
     }
@@ -80,9 +85,14 @@ class _GameScreenState extends State<GameScreen> {
     // it may have set still has to survive.
     unawaited(_storage.clearGame());
     unawaited(_storage.saveBestScore(_logic.bestScore));
-    // Fire and forget: a failed sync must not cost the player their run,
-    // and ScoreRepository already swallows and logs its own failures.
-    unawaited(_scores.recordScore(_logic.score));
+    unawaited(_syncScore());
+  }
+
+  /// Sends the score and remembers how it went, so the game-over card can
+  /// say so instead of leaving the player guessing.
+  Future<void> _syncScore() async {
+    final outcome = await _scores.recordScore(_logic.score);
+    if (mounted) setState(() => _syncOutcome = outcome);
   }
 
   @override
@@ -117,6 +127,7 @@ class _GameScreenState extends State<GameScreen> {
                 return _GameOverOverlay(
                   score: _logic.score,
                   bestScore: _logic.bestScore,
+                  syncOutcome: _syncOutcome,
                   onRestart: _logic.restart,
                 );
               },
@@ -203,11 +214,13 @@ class _GameOverOverlay extends StatelessWidget {
   const _GameOverOverlay({
     required this.score,
     required this.bestScore,
+    required this.syncOutcome,
     required this.onRestart,
   });
 
   final int score;
   final int bestScore;
+  final SyncOutcome? syncOutcome;
   final VoidCallback onRestart;
 
   @override
@@ -245,7 +258,9 @@ class _GameOverOverlay extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               _BestScorePill(bestScore: bestScore),
-              const SizedBox(height: 28),
+              const SizedBox(height: 14),
+              _SyncNote(outcome: syncOutcome),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: onRestart,
                 child: const Text('PLAY AGAIN'),
@@ -254,6 +269,59 @@ class _GameOverOverlay extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One line on the game-over card saying what became of the score.
+///
+/// Silence here used to be ambiguous: a player who was not signed in and a
+/// player whose request failed saw exactly the same thing as one whose
+/// score had saved fine.
+class _SyncNote extends StatelessWidget {
+  const _SyncNote({required this.outcome});
+
+  final SyncOutcome? outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, message, color) = switch (outcome) {
+      null => (Icons.cloud_upload, 'Saving your score…', AppTheme.muted),
+      SyncOutcome.saved => (
+          Icons.cloud_done,
+          'Score saved',
+          AppTheme.secondary,
+        ),
+      SyncOutcome.notSignedIn => (
+          Icons.cloud_off,
+          'Sign in to save your score',
+          AppTheme.muted,
+        ),
+      SyncOutcome.nothingToSave => (
+          Icons.remove,
+          'Nothing to save this round',
+          AppTheme.muted,
+        ),
+      SyncOutcome.failed => (
+          Icons.cloud_off,
+          'Could not save — check your connection',
+          Color(0xFFFFB4B4),
+        ),
+    };
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: color),
+          ),
+        ),
+      ],
     );
   }
 }
