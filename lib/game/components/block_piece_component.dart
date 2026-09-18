@@ -18,30 +18,66 @@ class BlockPieceComponent extends PositionComponent with DragCallbacks {
   BlockPieceComponent({
     required this.block,
     required this.trayIndex,
-    required this.cellSize,
+    required this.trayCellSize,
     required this.logic,
     required this.gridComponent,
   }) {
-    size = Vector2(block.shape.width * cellSize, block.shape.height * cellSize);
+    _cellSize = trayCellSize;
+    size = _sizeForCell(trayCellSize);
   }
+
+  /// How far above the pointer the piece is held while dragging, in grid
+  /// cells. Without it the finger covers the piece and the cells it is
+  /// about to land on — the piece is smaller than a thumb on a phone.
+  static const double _fingerLift = 1.2;
 
   final GameBlock block;
   final int trayIndex;
-  final double cellSize;
+
+  /// The cell size the piece is drawn at while resting in the tray, which
+  /// is deliberately smaller than a board cell so three pieces fit across.
+  final double trayCellSize;
+
   final GameLogic logic;
   final GridComponent gridComponent;
 
   final Vector2 _homePosition = Vector2.zero();
+
+  /// The cell size the piece is currently drawn at: [trayCellSize] at rest,
+  /// and the board's cell size while dragging. Drop targeting always works
+  /// in board cells, so a piece drawn at any other size while the player is
+  /// aiming would not cover the cells it is about to fill.
+  late double _cellSize;
 
   void setHome(Vector2 home) {
     _homePosition.setFrom(home);
     position = home.clone();
   }
 
+  Vector2 _sizeForCell(double cellSize) =>
+      Vector2(block.shape.width * cellSize, block.shape.height * cellSize);
+
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
     priority = 10;
+
+    final boardCellSize =
+        gridComponent.cellSize > 0 ? gridComponent.cellSize : trayCellSize;
+    final grabbed = event.localPosition;
+    final trayBounds = size.clone();
+
+    _cellSize = boardCellSize;
+    size = _sizeForCell(boardCellSize);
+
+    // Grow around the grabbed point rather than the top-left corner, so the
+    // part of the piece under the finger stays under the finger, then lift
+    // the whole piece clear of it.
+    if (trayBounds.x > 0 && trayBounds.y > 0) {
+      position.x -= (size.x - trayBounds.x) * (grabbed.x / trayBounds.x);
+      position.y -= (size.y - trayBounds.y) * (grabbed.y / trayBounds.y);
+    }
+    position.y -= boardCellSize * _fingerLift;
   }
 
   @override
@@ -53,14 +89,11 @@ class BlockPieceComponent extends PositionComponent with DragCallbacks {
   @override
   void onDragEnd(DragEndEvent event) {
     super.onDragEnd(event);
-    priority = 0;
     gridComponent.clearPreview();
 
     final origin = _originUnderPointer();
     final placed = origin != null && logic.tryPlace(trayIndex, origin);
-    if (!placed) {
-      position = _homePosition.clone();
-    }
+    if (!placed) _returnHome();
     // On success this component is torn down by TrayController's rebuild,
     // which runs synchronously inside logic.tryPlace above.
   }
@@ -68,8 +101,14 @@ class BlockPieceComponent extends PositionComponent with DragCallbacks {
   @override
   void onDragCancel(DragCancelEvent event) {
     super.onDragCancel(event);
-    priority = 0;
     gridComponent.clearPreview();
+    _returnHome();
+  }
+
+  void _returnHome() {
+    priority = 0;
+    _cellSize = trayCellSize;
+    size = _sizeForCell(trayCellSize);
     position = _homePosition.clone();
   }
 
@@ -81,8 +120,8 @@ class BlockPieceComponent extends PositionComponent with DragCallbacks {
     }
     gridComponent.setPreview(
       origin,
-      block.shape.cells,
-      logic.grid.canPlace(block.shape, origin),
+      block.previewOffsets,
+      logic.canPlace(block, origin),
     );
   }
 
@@ -108,31 +147,20 @@ class BlockPieceComponent extends PositionComponent with DragCallbacks {
   void render(Canvas canvas) {
     for (final offset in block.shape.cells) {
       final rect = Rect.fromLTWH(
-        offset.col * cellSize,
-        offset.row * cellSize,
-        cellSize,
-        cellSize,
-      ).deflate(2);
-      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+        offset.col * _cellSize,
+        offset.row * _cellSize,
+        _cellSize,
+        _cellSize,
+      ).deflate(_cellSize * 0.06);
 
-      if (block.kind == BlockKind.bomb) {
-        _paintBomb(canvas, rect, rrect);
-      } else {
-        canvas.drawRRect(rrect, Paint()..color = blockColorToColor(block.color));
+      switch (block.kind) {
+        case BlockKind.bomb:
+          paintBombCell(canvas, rect);
+        case BlockKind.wildcard:
+          paintWildcardCell(canvas, rect);
+        case BlockKind.normal:
+          paintBlockCell(canvas, rect, blockColorToColor(block.color));
       }
     }
-  }
-
-  void _paintBomb(Canvas canvas, Rect rect, RRect rrect) {
-    canvas.drawRRect(rrect, Paint()..color = const Color(0xFF2B2B33));
-    canvas.drawCircle(rect.center, rect.shortestSide * 0.32, Paint()..color = Colors.black);
-    canvas.drawCircle(
-      rect.center,
-      rect.shortestSide * 0.32,
-      Paint()
-        ..color = Colors.orangeAccent
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
   }
 }

@@ -1,14 +1,28 @@
+import 'dart:math';
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../../logic/game_logic.dart';
 import '../../models/game_grid.dart';
 import '../../models/grid_position.dart';
+import '../../theme/app_theme.dart';
 import '../block_palette.dart';
 
 /// Renders the 8x8 board and an optional placement preview overlay.
 class GridComponent extends PositionComponent {
   GridComponent({required this.logic});
+
+  /// How far the panel extends beyond the cell area, as a fraction of a
+  /// cell, so blocks do not touch its rounded corners.
+  ///
+  /// It grows *outward* from the component instead of inset: cell (0, 0)
+  /// has to stay at local (0, 0), because that is the origin
+  /// [BlockPieceComponent] measures drops against.
+  static const double _panelPadding = 0.22;
+
+  static const int _starCount = 26;
+  static const int _starSeed = 918;
 
   final GameLogic logic;
 
@@ -16,6 +30,7 @@ class GridComponent extends PositionComponent {
 
   Set<GridPosition> _previewCells = {};
   bool _previewValid = false;
+  List<Offset> _stars = const [];
 
   void layout(Vector2 canvasSize) {
     const gridSize = GameGrid.size;
@@ -24,6 +39,20 @@ class GridComponent extends PositionComponent {
     cellSize = (maxWidth < maxHeight ? maxWidth : maxHeight) / gridSize;
     size = Vector2.all(cellSize * gridSize);
     position = Vector2((canvasSize.x - size.x) / 2, canvasSize.y * 0.12);
+    _generateStars();
+  }
+
+  /// Faint specks inside the board panel, fixed per layout so they do not
+  /// crawl between frames.
+  void _generateStars() {
+    final random = Random(_starSeed);
+    _stars = [
+      for (var i = 0; i < _starCount; i++)
+        Offset(
+          -_padding + random.nextDouble() * (size.x + _padding * 2),
+          -_padding + random.nextDouble() * (size.y + _padding * 2),
+        ),
+    ];
   }
 
   /// Highlights the cells [shapeCells] (relative offsets) would occupy if
@@ -41,64 +70,120 @@ class GridComponent extends PositionComponent {
     _previewCells = {};
   }
 
+  double get _padding => cellSize * _panelPadding;
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.x, size.y),
-        const Radius.circular(12),
-      ),
-      Paint()..color = const Color(0xFF1B1E2B),
-    );
+    _paintPanel(canvas);
 
     for (var row = 0; row < GameGrid.size; row++) {
       for (var col = 0; col < GameGrid.size; col++) {
         final position = GridPosition(row, col);
         final cell = logic.grid.cellAt(position);
-        final rect = Rect.fromLTWH(
-          col * cellSize,
-          row * cellSize,
-          cellSize,
-          cellSize,
-        ).deflate(2);
-        final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+        final rect = _rectFor(row, col);
 
         if (cell.isLocked) {
-          _paintLockedCell(canvas, rect, rrect, cell.lockLevel);
+          _paintLockedCell(canvas, rect, cell.lockLevel);
+        } else if (cell.isWildcard) {
+          paintWildcardCell(canvas, rect);
         } else if (cell.isFilled) {
-          canvas.drawRRect(rrect, Paint()..color = blockColorToColor(cell.color!));
-        } else if (_previewCells.contains(position)) {
-          final previewColor = _previewValid ? Colors.white : Colors.redAccent;
-          canvas.drawRRect(rrect, Paint()..color = previewColor.withValues(alpha: 0.35));
+          paintBlockCell(canvas, rect, blockColorToColor(cell.color!));
         } else {
-          canvas.drawRRect(rrect, Paint()..color = const Color(0xFF262A3B));
+          _paintEmptyCell(canvas, rect);
+        }
+
+        if (cell.isEmpty && _previewCells.contains(position)) {
+          _paintPreview(canvas, rect);
         }
       }
     }
   }
 
-  static const _lockedFill = Color(0xFF3A5A7A);
+  Rect _rectFor(int row, int col) => Rect.fromLTWH(
+        col * cellSize,
+        row * cellSize,
+        cellSize,
+        cellSize,
+      ).deflate(cellSize * 0.06);
+
+  void _paintPanel(Canvas canvas) {
+    final panel = Rect.fromLTWH(
+      -_padding,
+      -_padding,
+      size.x + _padding * 2,
+      size.y + _padding * 2,
+    );
+    final rrect = RRect.fromRectAndRadius(
+      panel,
+      Radius.circular(cellSize * 0.5),
+    );
+
+    canvas
+      ..drawRRect(rrect, Paint()..color = AppTheme.boardPanel)
+      ..save()
+      ..clipRRect(rrect);
+    for (final star in _stars) {
+      canvas.drawCircle(
+        star,
+        0.9,
+        Paint()..color = Colors.white.withValues(alpha: 0.35),
+      );
+    }
+    canvas
+      ..restore()
+      ..drawRRect(
+        rrect,
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.06)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+  }
+
+  void _paintEmptyCell(Canvas canvas, Rect rect) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(rect.shortestSide * 0.26)),
+      Paint()..color = AppTheme.boardCell,
+    );
+  }
+
+  /// The drop target, drawn as an outline rather than a fill so the board
+  /// underneath stays readable while the piece hovers.
+  void _paintPreview(Canvas canvas, Rect rect) {
+    final color = _previewValid ? Colors.white : const Color(0xFFFF6B6B);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(rect.shortestSide * 0.26)),
+      Paint()
+        ..color = color.withValues(alpha: 0.9)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = rect.shortestSide * 0.09,
+    );
+  }
+
+  static const _lockedFill = Color(0xFF4B6E93);
   static const _lockedBorder = Color(0xFFBBE3FF);
 
-  void _paintLockedCell(Canvas canvas, Rect rect, RRect rrect, int lockLevel) {
-    canvas.drawRRect(rrect, Paint()..color = _lockedFill);
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..color = _lockedBorder.withValues(alpha: 0.7)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
+  void _paintLockedCell(Canvas canvas, Rect rect, int lockLevel) {
+    final rrect =
+        RRect.fromRectAndRadius(rect, Radius.circular(rect.shortestSide * 0.26));
+    canvas
+      ..drawRRect(rrect, Paint()..color = _lockedFill)
+      ..drawRRect(
+        rrect,
+        Paint()
+          ..color = _lockedBorder.withValues(alpha: 0.8)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = rect.shortestSide * 0.08,
+      );
 
     final textPainter = TextPainter(
       text: TextSpan(
         text: '$lockLevel',
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          fontSize: rect.shortestSide * 0.5,
         ),
       ),
       textDirection: TextDirection.ltr,

@@ -42,7 +42,9 @@ class TrayController {
     final slotCount = logic.tray.length;
     final slotWidth = _canvasSize.x / slotCount;
     final trayCenterY = _canvasSize.y * 0.8;
-    final pieceCellSize =
+    // Tray pieces rest at a fraction of a board cell so three of them fit
+    // side by side; each piece grows to full board scale while dragged.
+    final trayCellSize =
         gridComponent.cellSize > 0 ? gridComponent.cellSize * 0.65 : 24.0;
 
     for (var i = 0; i < slotCount; i++) {
@@ -52,7 +54,7 @@ class TrayController {
       final piece = BlockPieceComponent(
         block: block,
         trayIndex: i,
-        cellSize: pieceCellSize,
+        trayCellSize: trayCellSize,
         logic: logic,
         gridComponent: gridComponent,
       );

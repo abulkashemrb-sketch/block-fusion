@@ -2,6 +2,8 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart' show Color;
 
 import '../logic/game_logic.dart';
+import '../theme/app_theme.dart';
+import 'components/background_component.dart';
 import 'components/grid_component.dart';
 import 'components/tray_controller.dart';
 
@@ -11,14 +13,21 @@ class BlockFusionGame extends FlameGame {
 
   final GameLogic logic;
 
+  BackgroundComponent? _background;
   GridComponent? _gridComponent;
   TrayController? _trayController;
 
+  // The gradient backdrop is a component so it can carry the star field;
+  // this flat colour only shows for the frame before it mounts.
   @override
-  Color backgroundColor() => const Color(0xFF12141C);
+  Color backgroundColor() => AppTheme.background;
 
   @override
   Future<void> onLoad() async {
+    final background = BackgroundComponent();
+    add(background);
+    _background = background;
+
     final gridComponent = GridComponent(logic: logic);
     // Do not await: add() completes when the component is mounted, and
     // mounting is processed by the game loop, which does not run until
@@ -40,6 +49,7 @@ class BlockFusionGame extends FlameGame {
   }
 
   void _layout(Vector2 canvasSize) {
+    _background?.layout(canvasSize);
     _gridComponent?.layout(canvasSize);
     _trayController?.layout(canvasSize);
   }

@@ -29,7 +29,7 @@ void main() {
     expect(gameSize.width, greaterThan(300));
     expect(gameSize.height, greaterThan(600));
 
-    final hud = find.textContaining('SCORE');
+    final hud = find.byKey(const ValueKey('score-value'));
     expect(hud, findsOneWidget);
     final hudRect = tester.getRect(hud);
     expect(hudRect.width, greaterThan(0));
