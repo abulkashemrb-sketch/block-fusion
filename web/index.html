@@ -43,5 +43,31 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // Flutter's service worker caches the whole app so it can run offline.
+    // The cost is that a player who already has it keeps running the old
+    // build: the worker installs a new version in the background but waits
+    // for every tab to close before taking over, which for a game people
+    // leave open can be days.
+    //
+    // This asks the browser to check for a new worker on each load and, if
+    // one is waiting, reloads once as soon as it takes control. The guard
+    // is what stops that from becoming a loop — controllerchange also fires
+    // on the very first install, when there is nothing to update to.
+    if ('serviceWorker' in navigator) {
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        reloading = true;
+        window.location.reload();
+      });
+      navigator.serviceWorker.ready.then((registration) => {
+        // Only meaningful once a worker is already in charge; without this
+        // the first visit would reload itself for no reason.
+        if (navigator.serviceWorker.controller) registration.update();
+      });
+    }
+  </script>
 </body>
 </html>
