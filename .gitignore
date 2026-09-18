@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Gradle writes here even though Flutter redirects the main output to /build
+/android/build/
+/android/.gradle/
+/android/local.properties
+
 # Symbolication related
 app.*.symbols
 
