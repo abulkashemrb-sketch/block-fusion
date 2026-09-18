@@ -6,6 +6,7 @@ import '../models/block_kind.dart';
 import '../models/game_block.dart';
 import '../models/game_grid.dart';
 import '../models/grid_position.dart';
+import '../models/move_result.dart';
 import 'block_generator.dart';
 
 /// Owns the rules of a single match: the board, the current tray, the
@@ -40,6 +41,14 @@ class GameLogic extends ChangeNotifier {
 
   bool isGameOver = false;
 
+  /// What the most recent successful placement did, or `null` before the
+  /// first move and after a restart.
+  ///
+  /// The game layer reads this on each notification to decide what to
+  /// animate. It is the only channel by which the renderer learns that a
+  /// cell *cleared* rather than simply never having been filled.
+  MoveResult? lastMove;
+
   /// Whether [block] may be dropped with its top-left cell on [origin].
   ///
   /// A bomb only has to land in bounds: it clears whatever sits under it,
@@ -66,33 +75,60 @@ class GameLogic extends ChangeNotifier {
       return false;
     }
 
+    final scoreBefore = score;
+    final bestBefore = bestScore;
+    final filledBefore = grid.filledPositions();
+
+    final placedCells = <GridPosition>[];
     switch (block.kind) {
       case BlockKind.bomb:
         score += grid.detonate(origin);
       case BlockKind.wildcard:
         grid.placeWildcard(origin);
+        placedCells.add(origin);
         score += 1;
       case BlockKind.normal:
         grid.place(block.shape, origin, block.color);
+        placedCells.addAll(block.shape.cells.map((offset) => origin + offset));
         score += block.shape.cells.length;
     }
     tray[trayIndex] = null;
 
-    _resolveLineClears();
+    // A bomb empties cells as its placement; anything that was filled and
+    // is not any more went up in the blast.
+    final filledAfterPiece = grid.filledPositions();
+    final blastCleared = filledBefore.difference(filledAfterPiece);
+
+    final clears = _resolveLineClears();
+    // Whatever the clear emptied, including cells this very piece just
+    // filled. A locked cell that only lost a level is still filled, so it
+    // correctly stays out of this set.
+    final lineCleared = filledAfterPiece.difference(grid.filledPositions());
+
     _refillTrayIfEmpty();
     _updateGameOver();
 
-    if (score > bestScore) bestScore = score;
+    final isNewBest = score > bestBefore;
+    if (isNewBest) bestScore = score;
+
+    lastMove = MoveResult(
+      placedCells: placedCells,
+      clearedCells: [...blastCleared, ...lineCleared],
+      linesCleared: clears.lines,
+      monochromeLines: clears.monochromeLines,
+      pointsGained: score - scoreBefore,
+      isNewBest: isNewBest,
+    );
 
     notifyListeners();
     return true;
   }
 
-  void _resolveLineClears() {
+  ({int lines, int monochromeLines}) _resolveLineClears() {
     final rows = grid.fullRows();
     final columns = grid.fullColumns();
     final linesCleared = rows.length + columns.length;
-    if (linesCleared == 0) return;
+    if (linesCleared == 0) return (lines: 0, monochromeLines: 0);
 
     // Counted before the clear, while the colors are still on the board.
     final monochromeLines = rows.where(grid.isRowMonochrome).length +
@@ -108,6 +144,8 @@ class GameLogic extends ChangeNotifier {
     // base is always 10 * linesCleared^2.
     final colorBonus = base ~/ linesCleared * monochromeLines;
     score += base + colorBonus;
+
+    return (lines: linesCleared, monochromeLines: monochromeLines);
   }
 
   void _refillTrayIfEmpty() {
@@ -150,6 +188,7 @@ class GameLogic extends ChangeNotifier {
     tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));
     score = 0;
     isGameOver = false;
+    lastMove = null;
     notifyListeners();
   }
 }

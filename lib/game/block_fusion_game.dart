@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' show Color;
 import '../logic/game_logic.dart';
 import '../theme/app_theme.dart';
 import 'components/background_component.dart';
+import 'components/effects_controller.dart';
 import 'components/grid_component.dart';
 import 'components/tray_controller.dart';
 
@@ -16,6 +17,7 @@ class BlockFusionGame extends FlameGame {
   BackgroundComponent? _background;
   GridComponent? _gridComponent;
   TrayController? _trayController;
+  EffectsController? _effectsController;
 
   // The gradient backdrop is a component so it can carry the star field;
   // this flat colour only shows for the frame before it mounts.
@@ -39,6 +41,10 @@ class BlockFusionGame extends FlameGame {
       logic: logic,
       gridComponent: gridComponent,
     );
+    _effectsController = EffectsController(
+      logic: logic,
+      gridComponent: gridComponent,
+    );
     _layout(size);
   }
 
@@ -56,6 +62,7 @@ class BlockFusionGame extends FlameGame {
 
   @override
   void onRemove() {
+    _effectsController?.dispose();
     _trayController?.dispose();
     super.onRemove();
   }

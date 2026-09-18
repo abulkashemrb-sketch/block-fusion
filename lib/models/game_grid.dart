@@ -110,6 +110,16 @@ class GameGrid {
     _cells[position.row][position.col] = Cell(lockLevel: level);
   }
 
+  /// Every currently filled cell. Snapshotted before and after a move so
+  /// the logic can tell which cells actually cleared — the renderer needs
+  /// that to animate a burst, and it cannot be derived from the new board
+  /// alone.
+  Set<GridPosition> filledPositions() => {
+        for (var row = 0; row < size; row++)
+          for (var col = 0; col < size; col++)
+            if (_cells[row][col].isFilled) GridPosition(row, col),
+      };
+
   List<GridPosition> emptyPositions() => [
         for (var row = 0; row < size; row++)
           for (var col = 0; col < size; col++)
