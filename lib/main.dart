@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
 import 'services/feedback_service.dart';
+import 'services/game_storage.dart';
 import 'services/supabase_config.dart';
 import 'theme/app_theme.dart';
 
@@ -37,17 +38,38 @@ class BlockFusionApp extends StatefulWidget {
 class _BlockFusionAppState extends State<BlockFusionApp> {
   late final AuthService _authService = AuthService();
   final FeedbackService _feedbackService = FeedbackService();
+  final GameStorage _storage = GameStorage();
 
   @override
   void initState() {
     super.initState();
-    _feedbackService.warmUp();
+    _feedbackService
+      ..warmUp()
+      ..addListener(_persistFeedbackSettings);
+    _loadFeedbackSettings();
+  }
+
+  Future<void> _loadFeedbackSettings() async {
+    final saved = await _storage.loadFeedbackSettings();
+    if (!mounted) return;
+    _feedbackService
+      ..setSoundEnabled(saved.sound)
+      ..setHapticsEnabled(saved.haptics);
+  }
+
+  void _persistFeedbackSettings() {
+    _storage.saveFeedbackSettings(
+      sound: _feedbackService.soundEnabled,
+      haptics: _feedbackService.hapticsEnabled,
+    );
   }
 
   @override
   void dispose() {
     _authService.dispose();
-    _feedbackService.dispose();
+    _feedbackService
+      ..removeListener(_persistFeedbackSettings)
+      ..dispose();
     super.dispose();
   }
 

@@ -24,6 +24,8 @@ class GameStorage {
 
   static const String _snapshotKey = 'block_fusion.snapshot';
   static const String _bestScoreKey = 'block_fusion.bestScore';
+  static const String _soundKey = 'block_fusion.sound';
+  static const String _hapticsKey = 'block_fusion.haptics';
 
   /// Opened lazily and kept, so every save after the first is one write
   /// rather than a plugin round trip.
@@ -99,6 +101,35 @@ class GameStorage {
       await prefs.setInt(_bestScoreKey, value);
     } catch (error) {
       _log('saveBestScore', error);
+    }
+  }
+
+  /// The sound and vibration switches, defaulting to on for a player who
+  /// has never opened settings.
+  Future<({bool sound, bool haptics})> loadFeedbackSettings() async {
+    final prefs = await _prefs();
+    try {
+      return (
+        sound: prefs?.getBool(_soundKey) ?? true,
+        haptics: prefs?.getBool(_hapticsKey) ?? true,
+      );
+    } catch (error) {
+      _log('loadFeedbackSettings', error);
+      return (sound: true, haptics: true);
+    }
+  }
+
+  Future<void> saveFeedbackSettings({
+    required bool sound,
+    required bool haptics,
+  }) async {
+    final prefs = await _prefs();
+    if (prefs == null) return;
+    try {
+      await prefs.setBool(_soundKey, sound);
+      await prefs.setBool(_hapticsKey, haptics);
+    } catch (error) {
+      _log('saveFeedbackSettings', error);
     }
   }
 

@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/account_bar.dart';
 import 'game_screen.dart';
 import 'leaderboard_screen.dart';
+import 'settings_screen.dart';
 
 /// Landing screen shown on app launch.
 class HomeScreen extends StatelessWidget {
@@ -16,7 +17,16 @@ class HomeScreen extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
-          child: Center(
+          child: Stack(
+            children: [
+              const Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: _SettingsButton(),
+                ),
+              ),
+              Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Column(
@@ -62,9 +72,33 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Opens settings, or nothing at all when there is no scope above this
+/// widget — which is the case in widget tests that pump a screen alone.
+class _SettingsButton extends StatelessWidget {
+  const _SettingsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final feedback = AppScope.maybeOf(context)?.feedback;
+    if (feedback == null) return const SizedBox.shrink();
+    return IconButton(
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SettingsScreen(feedback: feedback),
+        ),
+      ),
+      icon: const Icon(Icons.settings),
+      color: AppTheme.muted,
+      tooltip: 'Settings',
     );
   }
 }
