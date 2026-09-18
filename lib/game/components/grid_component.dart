@@ -24,9 +24,45 @@ class GridComponent extends PositionComponent {
   static const int _starCount = 26;
   static const int _starSeed = 918;
 
+  /// Height reserved at the top for the score HUD, as a fraction of the
+  /// canvas.
+  static const double _hudBand = 0.13;
+
+  /// Total horizontal margin around the board.
+  static const double _sideMargin = 20;
+
+  /// How big a tray piece's cell is relative to a board cell. Tray pieces
+  /// are smaller so three of them fit across; each grows to full board scale
+  /// while it is dragged.
+  static const double trayScale = 0.72;
+
+  /// The tallest shape in the library, in cells — what the tray strip has to
+  /// be able to hold.
+  static const int _tallestShapeCells = 4;
+
+  /// Height of the tray strip, in board cells: the tallest piece plus a
+  /// little room. Derived from [trayScale] so the two cannot fall out of
+  /// step.
+  static const double _trayBandCells =
+      _tallestShapeCells * trayScale + 0.25;
+
+  /// Gap between the bottom of the board and the top of the tray strip.
+  static const double _boardToTrayGapCells = 0.6;
+
   final GameLogic logic;
 
   double cellSize = 0;
+
+  /// The cell size tray pieces rest at.
+  double get trayCellSize => cellSize * trayScale;
+
+  /// Vertical centre of the tray strip.
+  ///
+  /// Derived here rather than from a fraction of the canvas so the board and
+  /// the tray cannot drift apart: on a tall phone the board is bound by
+  /// width, and any fixed tray fraction leaves the whole leftover height
+  /// pooled in the gap between them.
+  double trayCenterY = 0;
 
   Set<GridPosition> _previewCells = {};
   bool _previewValid = false;
@@ -34,11 +70,22 @@ class GridComponent extends PositionComponent {
 
   void layout(Vector2 canvasSize) {
     const gridSize = GameGrid.size;
-    final maxWidth = canvasSize.x - 32;
+    final maxWidth = canvasSize.x - _sideMargin;
     final maxHeight = canvasSize.y * 0.55;
     cellSize = (maxWidth < maxHeight ? maxWidth : maxHeight) / gridSize;
     size = Vector2.all(cellSize * gridSize);
-    position = Vector2((canvasSize.x - size.x) / 2, canvasSize.y * 0.12);
+
+    // Board and tray are laid out as one block and centred together in the
+    // space under the HUD, so leftover height is split above and below them
+    // instead of collecting in the middle.
+    final hudBand = canvasSize.y * _hudBand;
+    final trayBand = cellSize * _trayBandCells;
+    final gap = cellSize * _boardToTrayGapCells;
+    final slack = canvasSize.y - hudBand - size.y - gap - trayBand;
+    final top = hudBand + (slack > 0 ? slack / 2 : 0);
+
+    position = Vector2((canvasSize.x - size.x) / 2, top);
+    trayCenterY = top + size.y + gap + trayBand / 2;
     _generateStars();
   }
 

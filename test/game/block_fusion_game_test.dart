@@ -32,21 +32,37 @@ class _Layout {
   final double canvasHeight;
 
   static const int gridSize = 8;
-  static const double trayScale = 0.65;
+  static const double trayScale = 0.72;
   static const double fingerLift = 1.2;
+  static const double hudBand = 0.13;
+  static const double trayBandCells = 4 * trayScale + 0.25;
+  static const double boardToTrayGapCells = 0.6;
 
   double get cellSize {
-    final maxWidth = canvasWidth - 32;
+    final maxWidth = canvasWidth - 20;
     final maxHeight = canvasHeight * 0.55;
     return (maxWidth < maxHeight ? maxWidth : maxHeight) / gridSize;
   }
 
   double get trayCellSize => cellSize * trayScale;
 
-  Offset get gridTopLeft => Offset(
-        (canvasWidth - cellSize * gridSize) / 2,
-        canvasHeight * 0.12,
-      );
+  double get _boardTop {
+    final slack = canvasHeight -
+        canvasHeight * hudBand -
+        cellSize * gridSize -
+        cellSize * boardToTrayGapCells -
+        cellSize * trayBandCells;
+    return canvasHeight * hudBand + (slack > 0 ? slack / 2 : 0);
+  }
+
+  Offset get gridTopLeft =>
+      Offset((canvasWidth - cellSize * gridSize) / 2, _boardTop);
+
+  double get trayCenterY =>
+      _boardTop +
+      cellSize * gridSize +
+      cellSize * boardToTrayGapCells +
+      cellSize * trayBandCells / 2;
 
   /// Top-left of the piece resting in tray slot [index], for a shape of
   /// [width] x [height] cells.
@@ -55,7 +71,7 @@ class _Layout {
     final slotCenterX = slotWidth * index + slotWidth / 2;
     return Offset(
       slotCenterX - width * trayCellSize / 2,
-      canvasHeight * 0.8 - height * trayCellSize / 2,
+      trayCenterY - height * trayCellSize / 2,
     );
   }
 
