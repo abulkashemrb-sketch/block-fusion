@@ -16,7 +16,7 @@ class GameLogic extends ChangeNotifier {
   GameLogic({BlockGenerator? generator, Random? random})
       : _generator = generator ?? BlockGenerator(),
         _random = random ?? Random() {
-    tray = List<GameBlock?>.from(_generator.nextTray());
+    tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));
   }
 
   static const int _pointsPerClearedLine = 10;
@@ -32,7 +32,29 @@ class GameLogic extends ChangeNotifier {
 
   late List<GameBlock?> tray;
   int score = 0;
+
+  /// The best score of this session. Survives [restart] on purpose — it is
+  /// what the crown in the HUD shows. Persisting it across launches is the
+  /// Supabase sync's job, not this class's.
+  int bestScore = 0;
+
   bool isGameOver = false;
+
+  /// Whether [block] may be dropped with its top-left cell on [origin].
+  ///
+  /// A bomb only has to land in bounds: it clears whatever sits under it,
+  /// so requiring an empty cell would make it useless in exactly the
+  /// jammed-board situation it exists to rescue.
+  bool canPlace(GameBlock block, GridPosition origin) =>
+      block.kind == BlockKind.bomb
+          ? grid.isInBounds(origin)
+          : grid.canPlace(block.shape, origin);
+
+  /// Whether [block] fits anywhere on the board at all — the game-over
+  /// test, and the fit check the generator uses to avoid dealing a tray
+  /// that cannot be played.
+  bool canPlaceAnywhere(GameBlock block) =>
+      block.kind == BlockKind.bomb || grid.canPlaceAnywhere(block.shape);
 
   /// Attempts to place the tray piece at [trayIndex] with its top-left
   /// cell anchored at [origin]. Returns whether the placement succeeded.
@@ -40,21 +62,27 @@ class GameLogic extends ChangeNotifier {
     if (isGameOver) return false;
 
     final block = tray[trayIndex];
-    if (block == null || !grid.canPlace(block.shape, origin)) {
+    if (block == null || !canPlace(block, origin)) {
       return false;
     }
 
-    if (block.kind == BlockKind.bomb) {
-      score += grid.detonate(origin);
-    } else {
-      grid.place(block.shape, origin, block.color);
-      score += block.shape.cells.length;
+    switch (block.kind) {
+      case BlockKind.bomb:
+        score += grid.detonate(origin);
+      case BlockKind.wildcard:
+        grid.placeWildcard(origin);
+        score += 1;
+      case BlockKind.normal:
+        grid.place(block.shape, origin, block.color);
+        score += block.shape.cells.length;
     }
     tray[trayIndex] = null;
 
     _resolveLineClears();
     _refillTrayIfEmpty();
     _updateGameOver();
+
+    if (score > bestScore) bestScore = score;
 
     notifyListeners();
     return true;
@@ -66,17 +94,29 @@ class GameLogic extends ChangeNotifier {
     final linesCleared = rows.length + columns.length;
     if (linesCleared == 0) return;
 
+    // Counted before the clear, while the colors are still on the board.
+    final monochromeLines = rows.where(grid.isRowMonochrome).length +
+        columns.where(grid.isColumnMonochrome).length;
+
     grid.clearLines(rows, columns);
+
     // Clearing several lines in one move scores far more than clearing
     // them one at a time — this is the combo system for the core loop.
-    score += _pointsPerClearedLine * linesCleared * linesCleared;
+    final base = _pointsPerClearedLine * linesCleared * linesCleared;
+    // Each line's share of that total is base / linesCleared, and a line
+    // built in a single color is worth its share twice. Divides exactly:
+    // base is always 10 * linesCleared^2.
+    final colorBonus = base ~/ linesCleared * monochromeLines;
+    score += base + colorBonus;
   }
 
   void _refillTrayIfEmpty() {
-    if (tray.every((block) => block == null)) {
-      tray = List<GameBlock?>.from(_generator.nextTray());
-      _maybeSpawnLockedCell();
-    }
+    if (tray.any((block) => block != null)) return;
+
+    // The obstacle spawns first so the incoming tray is checked against the
+    // board the player will actually face, not the one before the spawn.
+    _maybeSpawnLockedCell();
+    tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));
   }
 
   void _maybeSpawnLockedCell() {
@@ -91,13 +131,13 @@ class GameLogic extends ChangeNotifier {
 
   void _updateGameOver() {
     final remaining = tray.whereType<GameBlock>();
-    isGameOver = remaining.isNotEmpty &&
-        remaining.every((block) => !grid.canPlaceAnywhere(block.shape));
+    isGameOver =
+        remaining.isNotEmpty && remaining.every((block) => !canPlaceAnywhere(block));
   }
 
   void restart() {
     grid.reset();
-    tray = List<GameBlock?>.from(_generator.nextTray());
+    tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));
     score = 0;
     isGameOver = false;
     notifyListeners();
