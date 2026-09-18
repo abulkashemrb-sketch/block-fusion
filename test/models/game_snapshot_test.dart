@@ -19,7 +19,7 @@ GameSnapshot? _roundTrip(GameSnapshot snapshot) =>
 
 /// The snapshot as it comes back off disk: encoded and decoded, so the
 /// lists are the untyped ones a real load works with. The corruption tests
-/// need that — a typed List<int> straight from toJson() refuses a bad value
+/// need that — a typed `List<int>` straight from toJson() refuses a bad value
 /// before the parser ever sees it, which would test nothing.
 Map<String, dynamic> _asStored(GameSnapshot snapshot) =>
     jsonDecode(jsonEncode(snapshot.toJson())) as Map<String, dynamic>;
