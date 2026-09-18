@@ -21,6 +21,18 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Google sends the player back here after they approve the
+                 sign-in. The scheme is claimed by this app and registered as
+                 an allowed redirect on the Supabase project; changing it in
+                 one place without the other silently breaks sign-in. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="io.supabase.blockfusion"
+                    android:host="login-callback"/>
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

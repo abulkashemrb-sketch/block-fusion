@@ -135,6 +135,16 @@ class GameLogic extends ChangeNotifier {
         remaining.isNotEmpty && remaining.every((block) => !canPlaceAnywhere(block));
   }
 
+  /// Raises the displayed best score to [value] if it is higher.
+  ///
+  /// Used when a stored best score arrives from the server — it can only
+  /// ever raise the crown, never lower a score the player just set.
+  void raiseBestScore(int value) {
+    if (value <= bestScore) return;
+    bestScore = value;
+    notifyListeners();
+  }
+
   void restart() {
     grid.reset();
     tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));

@@ -56,5 +56,12 @@ app.*.map.json
 .mcp.json
 PROJECT_HANDOFF.md
 
+# Secrets. Never commit these — the Supabase access token and database
+# password in here grant real access to the project.
+SUPABASE_CREDENTIALS.md
+.env
+.env.*
+!.env.example
+
 # Per-developer Claude Code settings (.claude/settings.json is shared on purpose)
 .claude/settings.local.json

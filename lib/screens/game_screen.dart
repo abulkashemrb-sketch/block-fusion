@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
 import '../game/block_fusion_game.dart';
 import '../logic/game_logic.dart';
+import '../services/score_repository.dart';
 import '../theme/app_theme.dart';
 
 class GameScreen extends StatefulWidget {
@@ -15,9 +18,41 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late final GameLogic _logic = GameLogic();
   late final BlockFusionGame _game = BlockFusionGame(logic: _logic);
+  final ScoreRepository _scores = ScoreRepository();
+
+  /// Set once per run, so a game-over rebuild cannot post the same score
+  /// again.
+  bool _recordedThisRun = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _logic.addListener(_onGameChanged);
+    _loadBestScore();
+  }
+
+  /// Seeds the crown from the server, so a signed-in player's best score
+  /// survives a reinstall or a move to another device.
+  Future<void> _loadBestScore() async {
+    final best = await _scores.fetchBestScore();
+    if (best != null && mounted) _logic.raiseBestScore(best);
+  }
+
+  void _onGameChanged() {
+    if (!_logic.isGameOver) {
+      _recordedThisRun = false;
+      return;
+    }
+    if (_recordedThisRun) return;
+    _recordedThisRun = true;
+    // Fire and forget: a failed sync must not cost the player their run,
+    // and ScoreRepository already swallows and logs its own failures.
+    unawaited(_scores.recordScore(_logic.score));
+  }
 
   @override
   void dispose() {
+    _logic.removeListener(_onGameChanged);
     _logic.dispose();
     super.dispose();
   }

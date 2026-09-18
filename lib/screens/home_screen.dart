@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../main.dart';
 import '../theme/app_theme.dart';
+import '../widgets/account_bar.dart';
 import 'game_screen.dart';
+import 'leaderboard_screen.dart';
 
 /// Landing screen shown on app launch.
 class HomeScreen extends StatelessWidget {
@@ -45,13 +48,17 @@ class HomeScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const GameScreen()),
                     ),
                     child: const Text('PLAY'),
                   ),
+                  const SizedBox(height: 16),
+                  const _LeaderboardButton(),
+                  const SizedBox(height: 28),
+                  const _Account(),
                 ],
               ),
             ),
@@ -59,6 +66,43 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Opens the leaderboard, carrying the signed-in player's id so their own
+/// row can be highlighted.
+class _LeaderboardButton extends StatelessWidget {
+  const _LeaderboardButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthScope.maybeOf(context);
+    return TextButton.icon(
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LeaderboardScreen(currentUserId: auth?.user?.id),
+        ),
+      ),
+      style: TextButton.styleFrom(foregroundColor: AppTheme.muted),
+      icon: const Icon(Icons.leaderboard, size: 18),
+      label: const Text(
+        'Leaderboard',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+/// The sign-in row, absent entirely when no AuthScope is above this widget
+/// — which is the case in widget tests that pump a screen on its own.
+class _Account extends StatelessWidget {
+  const _Account();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthScope.maybeOf(context);
+    if (auth == null) return const SizedBox.shrink();
+    return AccountBar(auth: auth);
   }
 }
 
