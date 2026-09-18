@@ -52,6 +52,11 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+# Vercel's project link. It also gets written inside build/web by a
+# `vercel deploy build/web`, where it then survives rebuilds and quietly
+# re-links a later deploy to whatever project it names.
+.vercel/
+
 # Local dev tooling / private notes (not part of the shipped app)
 .mcp.json
 PROJECT_HANDOFF.md

@@ -68,8 +68,14 @@ to Vercel as-is:
 
 ```bash
 flutter build web --release
+rm -rf build/web/.vercel      # see below
 vercel deploy build/web --prod
 ```
+
+That `rm` is not superstition. `vercel deploy build/web` writes its project
+link into `build/web/.vercel`, and `flutter build web` updates that
+directory rather than replacing it — so the link survives rebuilds and
+silently re-points later deploys at whatever project it happens to name.
 
 Files under `assets/`, `canvaskit/` and `icons/` are pinned for a year; the
 entry points that keep their names across builds (`index.html`,
