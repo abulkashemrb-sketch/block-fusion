@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../logic/game_logic.dart';
 import '../../models/grid_position.dart';
 import '../../models/move_result.dart';
+import '../../services/feedback_service.dart';
 import '../../theme/app_theme.dart';
 import '../block_palette.dart';
 import 'clear_burst_component.dart';
@@ -21,7 +22,11 @@ import 'grid_component.dart';
 /// It reads the *colours* off the board before the move is applied, because
 /// by the time it runs the cells are already empty — see [rememberBoard].
 class EffectsController {
-  EffectsController({required this.logic, required this.gridComponent}) {
+  EffectsController({
+    required this.logic,
+    required this.gridComponent,
+    this.feedback,
+  }) {
     _rememberBoard();
     logic.addListener(_onMove);
   }
@@ -29,11 +34,20 @@ class EffectsController {
   final GameLogic logic;
   final GridComponent gridComponent;
 
+  /// Sound and vibration for the same events. Optional so a test can drive
+  /// the visuals without an audio engine.
+  final FeedbackService? feedback;
+
   /// The colour of every filled cell as of the last frame, so a burst can
   /// be drawn in the colour the cell *had*.
   final Map<GridPosition, Color> _colorBefore = {};
 
   int _burstSeed = 0;
+
+  /// The move already animated. GameLogic notifies for things other than
+  /// placements — raiseBestScore does, when a stored score arrives — and
+  /// without this the same clear would burst and sound a second time.
+  MoveResult? _handled;
 
   void dispose() => logic.removeListener(_onMove);
 
@@ -57,9 +71,28 @@ class EffectsController {
       return;
     }
 
+    if (identical(move, _handled)) return;
+    _handled = move;
+
+    _sound(move);
     _spawnBursts(move);
     _spawnLabels(move);
     _rememberBoard();
+  }
+
+  void _sound(MoveResult move) {
+    final feedback = this.feedback;
+    if (feedback == null) return;
+
+    if (move.clearedAnything) {
+      feedback.lineCleared(
+        lines: move.linesCleared,
+        sameColor: move.monochromeLines > 0,
+      );
+    } else {
+      feedback.piecePlaced();
+    }
+    if (logic.isGameOver) feedback.gameOver();
   }
 
   void _spawnBursts(MoveResult move) {

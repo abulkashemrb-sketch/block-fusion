@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
+import 'services/feedback_service.dart';
 import 'services/supabase_config.dart';
 import 'theme/app_theme.dart';
 
@@ -35,17 +36,26 @@ class BlockFusionApp extends StatefulWidget {
 
 class _BlockFusionAppState extends State<BlockFusionApp> {
   late final AuthService _authService = AuthService();
+  final FeedbackService _feedbackService = FeedbackService();
+
+  @override
+  void initState() {
+    super.initState();
+    _feedbackService.warmUp();
+  }
 
   @override
   void dispose() {
     _authService.dispose();
+    _feedbackService.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AuthScope(
+    return AppScope(
       auth: _authService,
+      feedback: _feedbackService,
       child: MaterialApp(
         title: 'Block Fusion',
         debugShowCheckedModeBanner: false,
@@ -56,31 +66,28 @@ class _BlockFusionAppState extends State<BlockFusionApp> {
   }
 }
 
-/// Makes the one [AuthService] reachable from any screen.
+/// Makes the app's long-lived services reachable from any screen.
 ///
-/// The app has exactly one of these and it lives for the whole session, so
-/// an InheritedWidget is enough — no state-management package needed for a
-/// single long-lived object.
-class AuthScope extends InheritedWidget {
-  const AuthScope({
+/// There is exactly one of each and they live for the whole session, so an
+/// InheritedWidget is enough — no state-management package needed to hand
+/// around two objects that never get replaced.
+class AppScope extends InheritedWidget {
+  const AppScope({
     required this.auth,
+    required this.feedback,
     required super.child,
     super.key,
   });
 
   final AuthService auth;
+  final FeedbackService feedback;
 
-  static AuthService of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<AuthScope>();
-    assert(scope != null, 'No AuthScope above this widget');
-    return scope!.auth;
-  }
-
-  /// Returns null instead of asserting, for widgets that are also used in
-  /// tests without an AuthScope around them.
-  static AuthService? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AuthScope>()?.auth;
+  /// Returns null instead of asserting, because several screens are also
+  /// pumped on their own in widget tests, with no scope above them.
+  static AppScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppScope>();
 
   @override
-  bool updateShouldNotify(AuthScope oldWidget) => auth != oldWidget.auth;
+  bool updateShouldNotify(AppScope oldWidget) =>
+      auth != oldWidget.auth || feedback != oldWidget.feedback;
 }

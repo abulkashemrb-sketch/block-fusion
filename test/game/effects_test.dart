@@ -139,6 +139,24 @@ void main() {
     expect(labels, contains('SAME COLOUR!'));
   });
 
+  testWidgets('a notification that is not a move replays nothing',
+      (tester) async {
+    // GameLogic notifies for things other than placements — a stored best
+    // score arriving from the server does. Replaying the last move's
+    // effects then would burst the same cells a second time.
+    final (logic, _, grid) = await pumpOneAwayFromAClear(tester);
+
+    logic.tryPlace(0, const GridPosition(0, 0));
+    await tester.pump();
+    final afterMove = grid.children.whereType<ClearBurstComponent>().length;
+    expect(afterMove, greaterThan(0));
+
+    logic.raiseBestScore(99999);
+    await tester.pump();
+
+    expect(grid.children.whereType<ClearBurstComponent>().length, afterMove);
+  });
+
   testWidgets('beating the best score is celebrated', (tester) async {
     final (logic, _, grid) = await pumpOneAwayFromAClear(tester);
 

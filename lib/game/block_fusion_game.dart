@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart' show Color;
 
 import '../logic/game_logic.dart';
+import '../services/feedback_service.dart';
 import '../theme/app_theme.dart';
 import 'components/background_component.dart';
 import 'components/effects_controller.dart';
@@ -10,9 +11,12 @@ import 'components/tray_controller.dart';
 
 /// The Flame game hosting the board and tray for a single match.
 class BlockFusionGame extends FlameGame {
-  BlockFusionGame({required this.logic});
+  BlockFusionGame({required this.logic, this.feedback});
 
   final GameLogic logic;
+
+  /// Sound and vibration. Optional so tests can run the game silently.
+  final FeedbackService? feedback;
 
   BackgroundComponent? _background;
   GridComponent? _gridComponent;
@@ -44,6 +48,7 @@ class BlockFusionGame extends FlameGame {
     _effectsController = EffectsController(
       logic: logic,
       gridComponent: gridComponent,
+      feedback: feedback,
     );
     _layout(size);
   }

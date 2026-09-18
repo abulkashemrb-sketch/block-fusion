@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import '../game/block_fusion_game.dart';
 import '../logic/game_logic.dart';
+import '../main.dart';
+import '../services/feedback_service.dart';
 import '../services/score_repository.dart';
 import '../theme/app_theme.dart';
 
@@ -17,8 +19,16 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late final GameLogic _logic = GameLogic();
-  late final BlockFusionGame _game = BlockFusionGame(logic: _logic);
+  late final BlockFusionGame _game = BlockFusionGame(
+    logic: _logic,
+    feedback: _feedback,
+  );
   final ScoreRepository _scores = ScoreRepository();
+
+  /// The app-wide service when there is one, and a local instance when the
+  /// screen is pumped on its own in a test.
+  late final FeedbackService _feedback =
+      AppScope.maybeOf(context)?.feedback ?? FeedbackService();
 
   /// Set once per run, so a game-over rebuild cannot post the same score
   /// again.

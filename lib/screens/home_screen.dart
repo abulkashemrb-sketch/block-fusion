@@ -76,7 +76,7 @@ class _LeaderboardButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = AuthScope.maybeOf(context);
+    final auth = AppScope.maybeOf(context)?.auth;
     return TextButton.icon(
       onPressed: () => Navigator.of(context).push(
         MaterialPageRoute(
@@ -93,14 +93,14 @@ class _LeaderboardButton extends StatelessWidget {
   }
 }
 
-/// The sign-in row, absent entirely when no AuthScope is above this widget
+/// The sign-in row, absent entirely when no AppScope is above this widget
 /// — which is the case in widget tests that pump a screen on its own.
 class _Account extends StatelessWidget {
   const _Account();
 
   @override
   Widget build(BuildContext context) {
-    final auth = AuthScope.maybeOf(context);
+    final auth = AppScope.maybeOf(context)?.auth;
     if (auth == null) return const SizedBox.shrink();
     return AccountBar(auth: auth);
   }
