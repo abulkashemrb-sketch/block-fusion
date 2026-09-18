@@ -7,6 +7,7 @@ import '../game/block_fusion_game.dart';
 import '../logic/game_logic.dart';
 import '../main.dart';
 import '../services/feedback_service.dart';
+import '../services/game_storage.dart';
 import '../services/score_repository.dart';
 import '../theme/app_theme.dart';
 
@@ -24,6 +25,7 @@ class _GameScreenState extends State<GameScreen> {
     feedback: _feedback,
   );
   final ScoreRepository _scores = ScoreRepository();
+  final GameStorage _storage = GameStorage();
 
   /// The app-wide service when there is one, and a local instance when the
   /// screen is pumped on its own in a test.
@@ -34,27 +36,50 @@ class _GameScreenState extends State<GameScreen> {
   /// again.
   bool _recordedThisRun = false;
 
+  /// Held until the saved game has been read, so the first move cannot save
+  /// a fresh board over the one still being restored.
+  bool _restored = false;
+
   @override
   void initState() {
     super.initState();
     _logic.addListener(_onGameChanged);
-    _loadBestScore();
+    _resume();
   }
 
-  /// Seeds the crown from the server, so a signed-in player's best score
-  /// survives a reinstall or a move to another device.
-  Future<void> _loadBestScore() async {
-    final best = await _scores.fetchBestScore();
-    if (best != null && mounted) _logic.raiseBestScore(best);
+  /// Puts the player back where they left off, then raises the crown to
+  /// whatever the device and the server remember.
+  Future<void> _resume() async {
+    final saved = await _storage.loadGame();
+    if (!mounted) return;
+    if (saved != null) _logic.restore(saved);
+
+    final localBest = await _storage.loadBestScore();
+    if (!mounted) return;
+    _logic.raiseBestScore(localBest);
+    _restored = true;
+
+    // The server's copy arrives last and can only raise the crown further,
+    // so a slow network never shows a lower number than the device knows.
+    final remoteBest = await _scores.fetchBestScore();
+    if (remoteBest != null && mounted) _logic.raiseBestScore(remoteBest);
   }
 
   void _onGameChanged() {
+    if (!_restored) return;
+
     if (!_logic.isGameOver) {
       _recordedThisRun = false;
+      unawaited(_storage.saveGame(_logic.toSnapshot()));
       return;
     }
     if (_recordedThisRun) return;
     _recordedThisRun = true;
+
+    // The run is over, so there is nothing to resume — but the best score
+    // it may have set still has to survive.
+    unawaited(_storage.clearGame());
+    unawaited(_storage.saveBestScore(_logic.bestScore));
     // Fire and forget: a failed sync must not cost the player their run,
     // and ScoreRepository already swallows and logs its own failures.
     unawaited(_scores.recordScore(_logic.score));

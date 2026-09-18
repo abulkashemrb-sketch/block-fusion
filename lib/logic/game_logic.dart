@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/block_kind.dart';
 import '../models/game_block.dart';
 import '../models/game_grid.dart';
+import '../models/game_snapshot.dart';
 import '../models/grid_position.dart';
 import '../models/move_result.dart';
 import 'block_generator.dart';
@@ -171,6 +172,37 @@ class GameLogic extends ChangeNotifier {
     final remaining = tray.whereType<GameBlock>();
     isGameOver =
         remaining.isNotEmpty && remaining.every((block) => !canPlaceAnywhere(block));
+  }
+
+  /// The current game, in a form that can be written down.
+  GameSnapshot toSnapshot() => GameSnapshot(
+        cells: grid.snapshotCells(),
+        tray: List<GameBlock?>.from(tray),
+        score: score,
+        bestScore: bestScore,
+      );
+
+  /// Puts a saved game back. Returns whether it was accepted.
+  ///
+  /// A snapshot that does not fit the board is refused outright rather than
+  /// partly applied, and game-over is recomputed from the restored board
+  /// instead of being trusted from the save — the rules may have changed
+  /// since it was written.
+  bool restore(GameSnapshot snapshot) {
+    if (!grid.restoreCells(snapshot.cells)) return false;
+
+    tray = List<GameBlock?>.from(snapshot.tray);
+    // A save with an empty tray would leave the player with nothing to
+    // place and no refill coming, so deal a fresh one.
+    if (tray.isEmpty || tray.every((block) => block == null)) {
+      tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));
+    }
+    score = snapshot.score;
+    bestScore = snapshot.bestScore > score ? snapshot.bestScore : score;
+    lastMove = null;
+    _updateGameOver();
+    notifyListeners();
+    return true;
   }
 
   /// Raises the displayed best score to [value] if it is higher.

@@ -180,6 +180,27 @@ class GameGrid {
     return remaining > 0 ? Cell(lockLevel: remaining) : const Cell.empty();
   }
 
+  /// The whole board, row by row, for saving.
+  List<Cell> snapshotCells() => [
+        for (var row = 0; row < size; row++)
+          for (var col = 0; col < size; col++) _cells[row][col],
+      ];
+
+  /// Replaces the whole board from a saved [snapshotCells] list.
+  ///
+  /// A snapshot of the wrong length is ignored rather than partially
+  /// applied: a half-restored board is worse than a fresh one, and the only
+  /// way to get one is a save written by a different version of the game.
+  bool restoreCells(List<Cell> cells) {
+    if (cells.length != size * size) return false;
+    for (var row = 0; row < size; row++) {
+      for (var col = 0; col < size; col++) {
+        _cells[row][col] = cells[row * size + col];
+      }
+    }
+    return true;
+  }
+
   void reset() {
     for (var row = 0; row < size; row++) {
       for (var col = 0; col < size; col++) {
