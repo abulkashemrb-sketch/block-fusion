@@ -146,7 +146,7 @@ class _VolumeRow extends StatelessWidget {
         onChanged: feedback.setSoundVolume,
         // Played on release rather than on every step: a clip per pixel of
         // drag would stack dozens of overlapping sounds.
-        onChangeEnd: (_) => feedback.piecePlaced(),
+        onChangeEnd: (_) => feedback.previewSound(),
       ),
     );
   }
@@ -182,8 +182,9 @@ class _HapticsRow extends StatelessWidget {
               side: BorderSide.none,
               onSelected: (_) {
                 feedback.setHapticStrength(strength);
-                // Buzz at the new setting so the choice is felt, not read.
-                feedback.gameOver();
+                // Buzz at the new setting so the choice is felt, not read
+                // — and only buzz, with no sound attached to it.
+                feedback.previewHaptics();
               },
             ),
         ],

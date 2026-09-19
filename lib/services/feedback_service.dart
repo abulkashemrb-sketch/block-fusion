@@ -127,6 +127,19 @@ class FeedbackService extends ChangeNotifier {
     _buzz(scale: lines >= 2 ? 1.6 : 1.0);
   }
 
+  /// Plays a clearly audible clip and nothing else, for the volume slider.
+  ///
+  /// Deliberately not [piecePlaced]: that is the quietest clip in the set
+  /// and is scaled down again on top, so at anything but full volume it is
+  /// inaudible — which reads as the slider doing nothing. And it must not
+  /// buzz: a player adjusting sound has not asked to be vibrated at.
+  void previewSound() => _play('clear.wav');
+
+  /// Buzzes at the current strength and stays silent, for the vibration
+  /// picker. The mirror of the problem above: a player adjusting vibration
+  /// has not asked for a noise.
+  void previewHaptics() => _buzz();
+
   void gameOver() {
     _play('gameover.wav');
     // Two pulses, which reads as an ending rather than one more clear.
@@ -145,40 +158,67 @@ class FeedbackService extends ChangeNotifier {
     final duration = (strength.milliseconds * scale).round().clamp(8, 400);
     final amplitude = (strength.amplitude * scale).round().clamp(1, 255);
 
-    if (_hasVibrator == false) {
-      // No motor to drive; the system haptic is better than nothing.
-      _guard('haptic fallback', HapticFeedback.mediumImpact);
-      return;
-    }
-
-    _guard('vibrate', () {
-      if (pattern == null) {
-        return Vibration.vibrate(duration: duration, amplitude: amplitude);
-      }
-      return Vibration.vibrate(
-        pattern: [
-          for (final unit in pattern)
-            // Odd entries are buzzes measured in units; even entries are
-            // waits already in milliseconds.
-            unit <= 1 ? duration * unit : unit,
-        ],
-        intensities: [
-          for (var i = 0; i < pattern.length; i++)
-            i.isOdd ? amplitude : 0,
-        ],
-      );
-    });
+    vibrate(
+      duration: duration,
+      amplitude: amplitude,
+      pattern: pattern == null
+          ? null
+          : [
+              for (final unit in pattern)
+                // Odd entries are buzzes measured in units of the chosen
+                // duration; even entries are waits already in milliseconds.
+                unit <= 1 ? duration * unit : unit,
+            ],
+    );
   }
 
   void _play(String clip, {double scale = 1.0}) {
     final volume = _soundVolume * scale;
     if (volume <= 0) return;
+    playClip(clip, volume);
+  }
+
+  /// Where a sound actually leaves the app.
+  ///
+  /// Separated from the decision of *what* to play so a test can watch the
+  /// decisions without an audio engine — the bug that prompted this was the
+  /// volume slider previewing with the wrong clip, which is a decision, and
+  /// invisible from outside until there was a seam here.
+  @protected
+  @visibleForTesting
+  void playClip(String clip, double volume) {
     // Both halves matter. The synchronous throw happens when the platform
     // channel is missing entirely; the rejected future happens when the
     // engine is there but refuses — a browser that has not seen a user
     // gesture yet is the common case, and an unhandled rejection there
     // would surface as a console error on every placement.
     _guard('play $clip', () => FlameAudio.play(clip, volume: volume));
+  }
+
+  /// Where a buzz actually leaves the app. The mirror of [playClip].
+  @protected
+  @visibleForTesting
+  void vibrate({
+    required int duration,
+    required int amplitude,
+    List<int>? pattern,
+  }) {
+    if (_hasVibrator == false) {
+      // No motor to drive; the system haptic is better than nothing.
+      _guard('haptic fallback', HapticFeedback.mediumImpact);
+      return;
+    }
+    _guard('vibrate', () {
+      if (pattern == null) {
+        return Vibration.vibrate(duration: duration, amplitude: amplitude);
+      }
+      return Vibration.vibrate(
+        pattern: pattern,
+        intensities: [
+          for (var i = 0; i < pattern.length; i++) i.isOdd ? amplitude : 0,
+        ],
+      );
+    });
   }
 
   void _guard(String what, Future<Object?> Function() action) {

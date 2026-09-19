@@ -5,7 +5,47 @@ import 'package:block_fusion/screens/settings_screen.dart';
 import 'package:block_fusion/services/feedback_service.dart';
 import 'package:block_fusion/theme/app_theme.dart';
 
+/// Records what the service decided to do, instead of doing it.
+///
+/// Subclassing rather than mocking: the seam is two methods wide, and the
+/// decisions under test — which clip, how long a buzz — are exactly what
+/// those two methods are handed.
+class _RecordingFeedback extends FeedbackService {
+  final List<String> sounds = [];
+  final List<int> buzzes = [];
+
+  @override
+  void playClip(String clip, double volume) => sounds.add(clip);
+
+  @override
+  void vibrate({
+    required int duration,
+    required int amplitude,
+    List<int>? pattern,
+  }) =>
+      buzzes.add(duration);
+
+  void clear() {
+    sounds.clear();
+    buzzes.clear();
+  }
+}
+
 void main() {
+  Future<T> pumpWith<T extends FeedbackService>(
+    WidgetTester tester,
+    T feedback,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: SettingsScreen(feedback: feedback),
+      ),
+    );
+    await tester.pumpAndSettle();
+    return feedback;
+  }
+
   Future<FeedbackService> pumpSettings(WidgetTester tester) async {
     final feedback = FeedbackService();
     await tester.pumpWidget(
@@ -76,6 +116,49 @@ void main() {
 
     expect(feedback.hapticStrength, HapticStrength.off);
     expect(feedback.hapticsEnabled, isFalse);
+  });
+
+  testWidgets('the volume preview is the loud clip, not the quiet one',
+      (tester) async {
+    // The first version previewed with piecePlaced(): the quietest clip in
+    // the set, scaled down again on top, so the slider seemed to do
+    // nothing — and it buzzed, which a player adjusting sound did not ask
+    // for.
+    final feedback = await pumpWith(tester, _RecordingFeedback());
+    feedback.clear();
+
+    await tester.drag(find.byType(Slider), const Offset(-100, 0));
+    await tester.pumpAndSettle();
+
+    expect(feedback.sounds, contains('clear.wav'));
+    expect(feedback.sounds, isNot(contains('place.wav')));
+    expect(feedback.buzzes, isEmpty, reason: 'a volume change must not buzz');
+  });
+
+  testWidgets('the vibration preview buzzes and stays silent',
+      (tester) async {
+    final feedback = await pumpWith(tester, _RecordingFeedback());
+    feedback.clear();
+
+    await tester.tap(find.text('Strong'));
+    await tester.pumpAndSettle();
+
+    expect(feedback.buzzes, isNotEmpty);
+    expect(feedback.sounds, isEmpty,
+        reason: 'a vibration change must not make a noise');
+  });
+
+  testWidgets('a stronger setting buzzes for longer', (tester) async {
+    final feedback = await pumpWith(tester, _RecordingFeedback());
+
+    await tester.tap(find.text('Light'));
+    await tester.pumpAndSettle();
+    final light = feedback.buzzes.last;
+
+    await tester.tap(find.text('Strong'));
+    await tester.pumpAndSettle();
+
+    expect(feedback.buzzes.last, greaterThan(light));
   });
 
   testWidgets('every special piece is explained', (tester) async {
