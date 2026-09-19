@@ -44,7 +44,16 @@ class _Layout {
     return (maxWidth < maxHeight ? maxWidth : maxHeight) / gridSize;
   }
 
-  double get trayCellSize => cellSize * trayScale;
+  /// Bounded by the slot as well as the board — a four-wide piece scaled
+  /// off the board cell overflows its third of a narrow screen.
+  double get trayCellSize {
+    const slots = 3;
+    const widestShapeCells = 4;
+    const slotFill = 0.92;
+    final byBoard = cellSize * trayScale;
+    final bySlot = (canvasWidth / slots) * slotFill / widestShapeCells;
+    return byBoard < bySlot ? byBoard : bySlot;
+  }
 
   double get _boardTop {
     final slack = canvasHeight -

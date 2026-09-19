@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/game_snapshot.dart';
+import 'feedback_service.dart';
 
 /// Keeps the game in progress on the device.
 ///
@@ -24,8 +25,12 @@ class GameStorage {
 
   static const String _snapshotKey = 'block_fusion.snapshot';
   static const String _bestScoreKey = 'block_fusion.bestScore';
-  static const String _soundKey = 'block_fusion.sound';
-  static const String _hapticsKey = 'block_fusion.haptics';
+  // The first release stored these as on/off booleans. They are still read
+  // so a player who had muted the game stays muted after the update.
+  static const String _soundOnKey = 'block_fusion.sound';
+  static const String _hapticsOnKey = 'block_fusion.haptics';
+  static const String _volumeKey = 'block_fusion.soundVolume';
+  static const String _strengthKey = 'block_fusion.hapticStrength';
 
   /// Opened lazily and kept, so every save after the first is one write
   /// rather than a plugin round trip.
@@ -104,30 +109,43 @@ class GameStorage {
     }
   }
 
-  /// The sound and vibration switches, defaulting to on for a player who
-  /// has never opened settings.
-  Future<({bool sound, bool haptics})> loadFeedbackSettings() async {
+  /// How loud and how hard the player wants the game, defaulting to the
+  /// service's own defaults for someone who has never opened settings.
+  ///
+  /// Falls back to the booleans the first release wrote, so an update does
+  /// not silently unmute a game somebody muted.
+  Future<({double volume, HapticStrength strength})>
+      loadFeedbackSettings() async {
     final prefs = await _prefs();
     try {
-      return (
-        sound: prefs?.getBool(_soundKey) ?? true,
-        haptics: prefs?.getBool(_hapticsKey) ?? true,
-      );
+      final volume = prefs?.getDouble(_volumeKey) ??
+          ((prefs?.getBool(_soundOnKey) ?? true)
+              ? FeedbackService.defaultVolume
+              : 0.0);
+      final strength = prefs?.getString(_strengthKey) != null
+          ? HapticStrength.fromName(prefs!.getString(_strengthKey))
+          : ((prefs?.getBool(_hapticsOnKey) ?? true)
+              ? HapticStrength.medium
+              : HapticStrength.off);
+      return (volume: volume.clamp(0.0, 1.0), strength: strength);
     } catch (error) {
       _log('loadFeedbackSettings', error);
-      return (sound: true, haptics: true);
+      return (
+        volume: FeedbackService.defaultVolume,
+        strength: HapticStrength.medium,
+      );
     }
   }
 
   Future<void> saveFeedbackSettings({
-    required bool sound,
-    required bool haptics,
+    required double volume,
+    required HapticStrength strength,
   }) async {
     final prefs = await _prefs();
     if (prefs == null) return;
     try {
-      await prefs.setBool(_soundKey, sound);
-      await prefs.setBool(_hapticsKey, haptics);
+      await prefs.setDouble(_volumeKey, volume);
+      await prefs.setString(_strengthKey, strength.name);
     } catch (error) {
       _log('saveFeedbackSettings', error);
     }

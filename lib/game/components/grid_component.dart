@@ -36,9 +36,15 @@ class GridComponent extends PositionComponent {
   /// while it is dragged.
   static const double trayScale = 0.72;
 
-  /// The tallest shape in the library, in cells — what the tray strip has to
-  /// be able to hold.
+  /// The tallest and widest shapes in the library — what a tray slot has to
+  /// be able to hold in each direction.
   static const int _tallestShapeCells = 4;
+  static const int _widestShapeCells = 4;
+
+  /// How many pieces the tray offers at once, and how much of a slot a
+  /// piece may fill before it starts crowding its neighbours.
+  static const int _traySlots = 3;
+  static const double _slotFill = 0.92;
 
   /// Height of the tray strip, in board cells: the tallest piece plus a
   /// little room. Derived from [trayScale] so the two cannot fall out of
@@ -54,7 +60,11 @@ class GridComponent extends PositionComponent {
   double cellSize = 0;
 
   /// The cell size tray pieces rest at.
-  double get trayCellSize => cellSize * trayScale;
+  ///
+  /// Bounded by the slot as well as by the board: on a narrow screen a
+  /// four-wide piece scaled off the board cell is wider than the third of
+  /// the screen it has to sit in, and hangs off the edge.
+  double trayCellSize = 0;
 
   /// Vertical centre of the tray strip.
   ///
@@ -86,6 +96,12 @@ class GridComponent extends PositionComponent {
 
     position = Vector2((canvasSize.x - size.x) / 2, top);
     trayCenterY = top + size.y + gap + trayBand / 2;
+
+    final slotWidth = canvasSize.x / _traySlots;
+    final byBoard = cellSize * trayScale;
+    final bySlot = slotWidth * _slotFill / _widestShapeCells;
+    trayCellSize = byBoard < bySlot ? byBoard : bySlot;
+
     _generateStars();
   }
 

@@ -53,14 +53,14 @@ class _BlockFusionAppState extends State<BlockFusionApp> {
     final saved = await _storage.loadFeedbackSettings();
     if (!mounted) return;
     _feedbackService
-      ..setSoundEnabled(saved.sound)
-      ..setHapticsEnabled(saved.haptics);
+      ..setSoundVolume(saved.volume)
+      ..setHapticStrength(saved.strength);
   }
 
   void _persistFeedbackSettings() {
     _storage.saveFeedbackSettings(
-      sound: _feedbackService.soundEnabled,
-      haptics: _feedbackService.hapticsEnabled,
+      volume: _feedbackService.soundVolume,
+      strength: _feedbackService.hapticStrength,
     );
   }
 

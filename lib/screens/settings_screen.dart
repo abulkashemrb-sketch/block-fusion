@@ -29,19 +29,9 @@ class SettingsScreen extends StatelessWidget {
                 listenable: feedback,
                 builder: (context, _) => Column(
                   children: [
-                    _Toggle(
-                      icon: Icons.volume_up,
-                      label: 'Sound',
-                      value: feedback.soundEnabled,
-                      onChanged: feedback.setSoundEnabled,
-                    ),
+                    _VolumeRow(feedback: feedback),
                     const SizedBox(height: 10),
-                    _Toggle(
-                      icon: Icons.vibration,
-                      label: 'Vibration',
-                      value: feedback.hapticsEnabled,
-                      onChanged: feedback.setHapticsEnabled,
-                    ),
+                    _HapticsRow(feedback: feedback),
                   ],
                 ),
               ),
@@ -100,42 +90,102 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _Toggle extends StatelessWidget {
-  const _Toggle({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
+class _Panel extends StatelessWidget {
+  const _Panel({required this.icon, required this.label, required this.child});
 
   final IconData icon;
   final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.muted, size: 20),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+          Row(
+            children: [
+              Icon(icon, color: AppTheme.muted, size: 20),
+              const SizedBox(width: 14),
+              Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _VolumeRow extends StatelessWidget {
+  const _VolumeRow({required this.feedback});
+
+  final FeedbackService feedback;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (feedback.soundVolume * 100).round();
+    return _Panel(
+      icon: feedback.soundVolume > 0 ? Icons.volume_up : Icons.volume_off,
+      label: 'Sound   $percent%',
+      child: Slider(
+        value: feedback.soundVolume,
+        // Twenty stops, so dragging lands on round numbers instead of 37%.
+        divisions: 20,
+        activeColor: AppTheme.accent,
+        inactiveColor: Colors.white24,
+        onChanged: feedback.setSoundVolume,
+        // Played on release rather than on every step: a clip per pixel of
+        // drag would stack dozens of overlapping sounds.
+        onChangeEnd: (_) => feedback.piecePlaced(),
+      ),
+    );
+  }
+}
+
+class _HapticsRow extends StatelessWidget {
+  const _HapticsRow({required this.feedback});
+
+  final FeedbackService feedback;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      icon: feedback.hapticsEnabled ? Icons.vibration : Icons.mobile_off,
+      label: 'Vibration',
+      child: Wrap(
+        spacing: 8,
+        children: [
+          for (final strength in HapticStrength.values)
+            ChoiceChip(
+              label: Text(strength.label),
+              selected: feedback.hapticStrength == strength,
+              showCheckmark: false,
+              selectedColor: AppTheme.accent,
+              backgroundColor: Colors.white10,
+              labelStyle: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: feedback.hapticStrength == strength
+                    ? const Color(0xFF3A2A00)
+                    : Colors.white,
+              ),
+              side: BorderSide.none,
+              onSelected: (_) {
+                feedback.setHapticStrength(strength);
+                // Buzz at the new setting so the choice is felt, not read.
+                feedback.gameOver();
+              },
             ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppTheme.accent,
-          ),
         ],
       ),
     );

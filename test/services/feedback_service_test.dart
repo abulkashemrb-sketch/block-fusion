@@ -8,24 +8,48 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('FeedbackService', () {
-    test('starts with sound and haptics on', () {
+    test('starts audible and buzzing', () {
       final feedback = FeedbackService();
 
+      expect(feedback.soundVolume, FeedbackService.defaultVolume);
       expect(feedback.soundEnabled, isTrue);
+      expect(feedback.hapticStrength, HapticStrength.medium);
       expect(feedback.hapticsEnabled, isTrue);
     });
 
-    test('toggling notifies listeners', () {
+    test('volume is clamped to 0..1 in the constructor and the setter', () {
+      expect(FeedbackService(soundVolume: 4).soundVolume, 1.0);
+      expect(FeedbackService(soundVolume: -2).soundVolume, 0.0);
+
+      final feedback = FeedbackService()..setSoundVolume(9);
+      expect(feedback.soundVolume, 1.0);
+      feedback.setSoundVolume(-9);
+      expect(feedback.soundVolume, 0.0);
+    });
+
+    test('zero volume counts as sound off', () {
+      final feedback = FeedbackService()..setSoundVolume(0);
+
+      expect(feedback.soundEnabled, isFalse);
+    });
+
+    test('off strength counts as haptics off', () {
+      final feedback = FeedbackService()
+        ..setHapticStrength(HapticStrength.off);
+
+      expect(feedback.hapticsEnabled, isFalse);
+    });
+
+    test('changing either setting notifies listeners', () {
       final feedback = FeedbackService();
       var notifications = 0;
       feedback.addListener(() => notifications++);
 
-      feedback.setSoundEnabled(false);
-      feedback.setHapticsEnabled(false);
+      feedback
+        ..setSoundVolume(0.3)
+        ..setHapticStrength(HapticStrength.strong);
 
       expect(notifications, 2);
-      expect(feedback.soundEnabled, isFalse);
-      expect(feedback.hapticsEnabled, isFalse);
     });
 
     test('setting a value it already has notifies nobody', () {
@@ -33,9 +57,19 @@ void main() {
       var notifications = 0;
       feedback.addListener(() => notifications++);
 
-      feedback.setSoundEnabled(true);
+      feedback
+        ..setSoundVolume(FeedbackService.defaultVolume)
+        ..setHapticStrength(HapticStrength.medium);
 
       expect(notifications, 0);
+    });
+
+    test('an unknown stored strength falls back to medium', () {
+      // A save from a future version, or a corrupted one, must not leave
+      // the game with no vibration setting at all.
+      expect(HapticStrength.fromName('no-such-strength'), HapticStrength.medium);
+      expect(HapticStrength.fromName(null), HapticStrength.medium);
+      expect(HapticStrength.fromName('strong'), HapticStrength.strong);
     });
 
     test('every event is safe to call with no audio engine behind it', () {
@@ -52,9 +86,9 @@ void main() {
       expect(feedback.gameOver, returnsNormally);
     });
 
-    test('muted, the same events are still safe', () {
+    test('silenced and stilled, the same events are still safe', () {
       final feedback =
-          FeedbackService(soundEnabled: false, hapticsEnabled: false);
+          FeedbackService(soundVolume: 0, hapticStrength: HapticStrength.off);
 
       expect(feedback.piecePlaced, returnsNormally);
       expect(() => feedback.lineCleared(lines: 2, sameColor: true),
