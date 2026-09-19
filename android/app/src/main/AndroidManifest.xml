@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Real vibration, with control over duration and strength.
+         HapticFeedback alone goes through the system's own haptic setting
+         and comes out too faint to notice on some devices. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <application
         android:label="Block Fusion"
         android:name="${applicationName}"

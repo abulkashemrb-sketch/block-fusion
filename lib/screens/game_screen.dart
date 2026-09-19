@@ -10,6 +10,7 @@ import '../services/feedback_service.dart';
 import '../services/game_storage.dart';
 import '../services/score_repository.dart';
 import '../theme/app_theme.dart';
+import 'settings_screen.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -119,6 +120,22 @@ class _GameScreenState extends State<GameScreen> {
               left: 0,
               right: 0,
               child: _ScoreHud(logic: _logic),
+            ),
+            // Reachable mid-game, not only from the menu: the moment a
+            // player wants the volume down is while the game is loud.
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(feedback: _feedback),
+                  ),
+                ),
+                icon: const Icon(Icons.settings),
+                color: Colors.white70,
+                tooltip: 'Settings',
+              ),
             ),
             ListenableBuilder(
               listenable: _logic,

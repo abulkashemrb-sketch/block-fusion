@@ -39,6 +39,7 @@ dependencies:
   google_sign_in: ^7.2.0
   flame_audio: ^2.12.2
   shared_preferences: ^2.5.5
+  vibration: ^3.2.1
 
 dev_dependencies:
   flutter_test:

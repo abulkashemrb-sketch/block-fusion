@@ -64,6 +64,39 @@ void main() {
       expect(notifications, 0);
     });
 
+    test('each strength is meaningfully stronger than the last', () {
+      // The whole point of four settings is that a hand can tell them
+      // apart. Duration carries most of that, because amplitude control is
+      // not available on every motor.
+      final steps = [
+        HapticStrength.light,
+        HapticStrength.medium,
+        HapticStrength.strong,
+      ];
+      for (var i = 1; i < steps.length; i++) {
+        expect(steps[i].milliseconds, greaterThan(steps[i - 1].milliseconds));
+        expect(steps[i].amplitude, greaterThan(steps[i - 1].amplitude));
+      }
+    });
+
+    test('the weakest buzz is still long enough to be felt', () {
+      // A vibration motor takes a few milliseconds to spin up; below about
+      // ten, the player feels nothing and reports the setting as broken.
+      expect(HapticStrength.light.milliseconds, greaterThanOrEqualTo(10));
+    });
+
+    test('amplitudes stay inside the range Android accepts', () {
+      for (final strength in HapticStrength.values) {
+        expect(strength.amplitude, inInclusiveRange(0, 255));
+      }
+    });
+
+    test('off means off', () {
+      expect(HapticStrength.off.isOff, isTrue);
+      expect(HapticStrength.off.milliseconds, 0);
+      expect(HapticStrength.off.amplitude, 0);
+    });
+
     test('an unknown stored strength falls back to medium', () {
       // A save from a future version, or a corrupted one, must not leave
       // the game with no vibration setting at all.
