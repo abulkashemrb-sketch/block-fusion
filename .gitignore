@@ -60,6 +60,7 @@ app.*.map.json
 # Local dev tooling / private notes (not part of the shipped app)
 .mcp.json
 PROJECT_HANDOFF.md
+PROJECT_INFO.md
 
 # Secrets. Never commit these — the Supabase access token and database
 # password in here grant real access to the project.

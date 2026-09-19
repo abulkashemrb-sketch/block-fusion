@@ -5,6 +5,9 @@ a PWA on Vercel and as an Android APK from the same codebase.
 
 **Play it: https://block-fusion-three.vercel.app** (installable as a PWA)
 
+Submitting or marking this? `PROJECT_SUBMISSION.md` maps the assignment's
+requirements to where each one is met.
+
 Drag one of three offered pieces onto an 8x8 board. Fill a row or a column and it
 clears. Clear several lines in one move and the combo multiplies. Two twists on
 the genre carry the scoring: **locked obstacle cells** that take two clears to
