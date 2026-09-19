@@ -12,7 +12,7 @@ class _FixedGenerator extends BlockGenerator {
   final GameBlock _block;
 
   @override
-  GameBlock next() => _block;
+  GameBlock next({double fullness = 0}) => _block;
 }
 
 GameLogic _logicWithSingles() => GameLogic(

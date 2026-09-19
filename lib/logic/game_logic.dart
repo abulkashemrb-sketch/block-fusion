@@ -25,8 +25,26 @@ class GameLogic extends ChangeNotifier {
 
   /// Chance, each time the tray is refilled, that a new locked obstacle
   /// cell appears somewhere empty on the board.
-  static const double _lockSpawnChance = 0.2;
+  ///
+  /// A fifth of refills was too much. Over a typical game that is five or
+  /// six obstacles, each costing two line clears to remove, on a board that
+  /// is already the whole difficulty — the genre this is modelled on ships
+  /// no obstacles at all in its main mode.
+  static const double _lockSpawnChance = 0.12;
   static const int _lockLevel = 2;
+
+  /// Refills before obstacles can appear at all.
+  ///
+  /// The opening of a game is where a new player decides whether they
+  /// understand it. Dropping a cell they cannot use into the first minute
+  /// reads as the game being broken rather than hard.
+  static const int _lockGraceRefills = 3;
+
+  /// The board is not allowed to accumulate more obstacles than this at
+  /// once. Without a cap, an unlucky run of spawns can crowd the board
+  /// faster than clears can open it, which is a loss the player had no
+  /// hand in.
+  static const int _maxLockedCells = 3;
 
   final BlockGenerator _generator;
   final Random _random;
@@ -41,6 +59,9 @@ class GameLogic extends ChangeNotifier {
   int bestScore = 0;
 
   bool isGameOver = false;
+
+  /// Counts refills, so obstacles can be held back for the opening.
+  int _refills = 0;
 
   /// What the most recent successful placement did, or `null` before the
   /// first move and after a restart.
@@ -152,13 +173,23 @@ class GameLogic extends ChangeNotifier {
   void _refillTrayIfEmpty() {
     if (tray.any((block) => block != null)) return;
 
+    _refills++;
     // The obstacle spawns first so the incoming tray is checked against the
     // board the player will actually face, not the one before the spawn.
     _maybeSpawnLockedCell();
-    tray = List<GameBlock?>.from(_generator.nextTray(fits: canPlaceAnywhere));
+    tray = List<GameBlock?>.from(
+      _generator.nextTray(fits: canPlaceAnywhere, fullness: fullness),
+    );
   }
 
+  /// How much of the board is occupied, 0 to 1. The generator uses it to
+  /// favour smaller pieces as room runs out.
+  double get fullness =>
+      grid.filledPositions().length / (GameGrid.size * GameGrid.size);
+
   void _maybeSpawnLockedCell() {
+    if (_refills <= _lockGraceRefills) return;
+    if (_lockedCellCount >= _maxLockedCells) return;
     if (_random.nextDouble() > _lockSpawnChance) return;
 
     final emptyPositions = grid.emptyPositions();
@@ -167,6 +198,11 @@ class GameLogic extends ChangeNotifier {
     final position = emptyPositions[_random.nextInt(emptyPositions.length)];
     grid.lockCell(position, level: _lockLevel);
   }
+
+  int get _lockedCellCount => grid
+      .filledPositions()
+      .where((position) => grid.cellAt(position).isLocked)
+      .length;
 
   void _updateGameOver() {
     final remaining = tray.whereType<GameBlock>();
@@ -221,6 +257,7 @@ class GameLogic extends ChangeNotifier {
     score = 0;
     isGameOver = false;
     lastMove = null;
+    _refills = 0;
     notifyListeners();
   }
 }

@@ -1,0 +1,13 @@
+# Test configuration.
+#
+# The simulation plays hundreds of full games to measure difficulty. It is
+# a measuring instrument, not a regression test, and at over two minutes it
+# would turn every `flutter test` into a coffee break. Tagging alone does
+# not exclude it — a tag only becomes a filter once it is configured here.
+#
+# To run it:
+#
+#     flutter test --run-skipped --tags simulation
+tags:
+  simulation:
+    skip: "slow; run with --run-skipped --tags simulation"

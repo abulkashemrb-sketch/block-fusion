@@ -17,7 +17,8 @@ class _FixedGenerator extends BlockGenerator {
   int _index = 0;
 
   @override
-  GameBlock next() => _blocks[_index++ % _blocks.length];
+  GameBlock next({double fullness = 0}) =>
+      _blocks[_index++ % _blocks.length];
 }
 
 /// The layout formulas of GridComponent / TrayController / BlockPieceComponent
